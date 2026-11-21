@@ -105,11 +105,18 @@ export function buildSpikeTools(context: AgentToolContext<Env>): ToolSet {
 
     spike_status: tool({
       description: 'SPIKE (owner only): list knowledge items for a spike document.',
-      inputSchema: z.object({ documentId: z.string() }),
-      execute: async ({ documentId }) => {
+      inputSchema: z.object({
+        documentId: z.string().describe("'' lists with no folder filter"),
+        search: z.string().optional(),
+      }),
+      execute: async ({ documentId, search }) => {
         await ownerOnly(context)
         try {
-          return await knowledge(context.env).list({ folder: documentFolder(documentId), perPage: 50 })
+          return await knowledge(context.env).list({
+            ...(documentId ? { folder: documentFolder(documentId) } : {}),
+            ...(search ? { search } : {}),
+            perPage: 50,
+          })
         } catch (error) {
           return { error: describeError(error) }
         }
@@ -127,7 +134,8 @@ export function buildSpikeTools(context: AgentToolContext<Env>): ToolSet {
         await ownerOnly(context)
         try {
           const result = await knowledge(context.env).search(query, {
-            folder: folder ?? KNOWLEDGE_ROOT,
+            // '' = no folder filter (follow-up test); undefined = KNOWLEDGE_ROOT.
+            folder: folder === '' ? undefined : (folder ?? KNOWLEDGE_ROOT),
             mode: mode ?? 'hybrid',
             limit: 8,
           })
@@ -150,14 +158,32 @@ export function buildSpikeTools(context: AgentToolContext<Env>): ToolSet {
     }),
 
     spike_cleanup: tool({
-      description: 'SPIKE (owner only): remove all knowledge items for a spike document.',
-      inputSchema: z.object({ documentId: z.string() }),
-      execute: async ({ documentId }) => {
+      description: 'SPIKE (owner only): remove knowledge items by id, and optionally the spike file.',
+      inputSchema: z.object({
+        itemIds: z.array(z.string()),
+        fileKey: z.string().optional(),
+      }),
+      execute: async ({ itemIds, fileKey }) => {
         await ownerOnly(context)
         const kb = knowledge(context.env)
-        const listed = await kb.list({ folder: documentFolder(documentId), perPage: 50 })
-        for (const item of listed.items) await kb.remove(item.id)
-        return { removed: listed.items.map((i) => i.key) }
+        const removed: Array<{ id: string; ok: boolean; error?: unknown }> = []
+        for (const id of itemIds) {
+          try {
+            await kb.remove(id)
+            removed.push({ id, ok: true })
+          } catch (error) {
+            removed.push({ id, ok: false, error: describeError(error) })
+          }
+        }
+        let file: unknown
+        if (fileKey) {
+          try {
+            file = await appFiles(context.env, { scope: 'self', userId: context.env.OWNER_USER_ID }).delete(fileKey)
+          } catch (error) {
+            file = { error: describeError(error) }
+          }
+        }
+        return { removed, file }
       },
     }),
   }
