@@ -67,6 +67,12 @@ bindings = [
 # Full reference, behavior, and pricing:
 #   https://docs.deep.space/bindings/knowledge
 
+# Managed knowledge for document passages (one item per page; see PLAN.md
+# § Per-page indexing). Billed to the app owner.
+[[ai_search]]
+binding = "KNOWLEDGE"
+instance_name = "auto"
+
 # --- DeepSpace detected secrets (names only; values live in `npx deepspace secrets`) ---
 #   (none declared)
 # --- end DeepSpace detected secrets ---

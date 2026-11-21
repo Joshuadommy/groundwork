@@ -11,7 +11,9 @@ import { jsonSchema, tool } from 'ai'
 import type { ToolSet } from 'ai'
 import { z } from 'zod/v4'
 import { BUILT_IN_TOOLS, applyAiToolDefaults } from 'deepspace/worker'
-import type { ToolSchema, CollectionSchema } from 'deepspace/worker'
+import type { AgentToolContext, ToolSchema, CollectionSchema } from 'deepspace/worker'
+import type { Env } from '../../worker'
+import { buildSpikeTools } from './spike-tools'
 
 type ToolExecutor = (toolName: string, params: Record<string, unknown>) => Promise<unknown>
 
@@ -77,8 +79,9 @@ export function buildSystemPrompt(appName: string, schemas: CollectionSchema[]):
 // Tool definitions
 // ============================================================================
 
-export function buildTools(executor: ToolExecutor): ToolSet {
-  const tools: ToolSet = {}
+export function buildTools(executor: ToolExecutor, context?: AgentToolContext<Env>): ToolSet {
+  // PHASE B SPIKE: temporary owner-only tools; remove with src/ai/spike-tools.ts.
+  const tools: ToolSet = context ? buildSpikeTools(context) : {}
 
   for (const def of BUILT_IN_TOOLS) {
     if (!ALLOWED_TOOL_NAMES.includes(def.name)) continue
