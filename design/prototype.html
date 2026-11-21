@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groundwork — prototype</title>
+<!--
+  GROUNDWORK UI PROTOTYPE — reference for Claude Code
+  Routes (map to DeepSpace file-based routes):
+    #/signin       Signed-out gate. Real app: use the DeepSpace SDK sign-in (useAuth / sign-in overlay). Do not build custom auth.
+    #/welcome      First run: owner creates the workspace (optionally loads sample documents)
+    #/no-access    Signed in but not a member: ask the owner for access
+    #/ask          Ask + answers with verified citations, source panel, feedback
+    #/documents    Upload dialog, validation errors, statuses, delete confirm
+    #/documents/:id/:page  Document viewer: whole document or a specific page, cited passage highlighted.
+                   Real app: render PDFs with pdf.js (e.g. react-pdf) from DeepSpace file storage; Markdown/text as styled text.
+    #/evals        Eval cases, re-run, changed/unchanged
+    #/team         Members, roles, invites (owner manages; others read-only)
+    #/404          Not found
+  Theme: light/dark toggle in the top bar (and on signed-out screens); default follows the system; "System" option in the account menu.
+  Global components: app shell (sidebar / top bar), account menu (theme, sign out), confirm dialog,
+  upload dialog, toast, error banner, empty states, loading states, status pills/badges, citation chip, source panel.
+  The "Prototype" menu (bottom-left) and "Preview as" role switcher are for demo only — do not build them.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#FFFFFF; --surface:#F7F8F9; --surface-2:#EFF1F3; --line:#E4E7EB;
+  --ink:#1B232E; --ink-2:#4E5866; --ink-3:#6B7480;
+  --brand:#1E6B52; --brand-ink:#FFFFFF; --brand-soft:#E7F2EE;
+  --amber:#8A5300; --amber-soft:#FBF1E2; --danger:#B42318; --danger-soft:#FDECEA;
+  --slate-soft:#EEF0F3; --focus:#2F6FD6; --hl:#FFF3B8;
+  --radius-s:8px; --radius-m:12px; --radius-l:16px;
+  --shadow:0 8px 28px rgba(27,35,46,.10); --shadow-l:0 24px 60px rgba(27,35,46,.18);
+  --font:"Cabin", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#15191F; --surface:#1B2027; --surface-2:#232932; --line:#2E3540;
+    --ink:#E9EDF2; --ink-2:#B4BCC7; --ink-3:#97A0AC;
+    --brand:#5CC29B; --brand-ink:#0F1A15; --brand-soft:#1C2E27;
+    --amber:#E9B062; --amber-soft:#2E2617; --danger:#F28B82; --danger-soft:#3A2220;
+    --slate-soft:#252B34; --focus:#7FAEFF; --hl:#4A4120;
+    --shadow:0 8px 28px rgba(0,0,0,.45); --shadow-l:0 24px 60px rgba(0,0,0,.55);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#15191F; --surface:#1B2027; --surface-2:#232932; --line:#2E3540;
+  --ink:#E9EDF2; --ink-2:#B4BCC7; --ink-3:#97A0AC;
+  --brand:#5CC29B; --brand-ink:#0F1A15; --brand-soft:#1C2E27;
+  --amber:#E9B062; --amber-soft:#2E2617; --danger:#F28B82; --danger-soft:#3A2220;
+  --slate-soft:#252B34; --focus:#7FAEFF; --hl:#4A4120;
+  --shadow:0 8px 28px rgba(0,0,0,.45); --shadow-l:0 24px 60px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Buttons & inputs */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:var(--radius-s);padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer;font-size:15px;text-decoration:none}
+.btn-primary{background:var(--brand);color:var(--brand-ink)}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-ghost{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{background:var(--surface)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-block{width:100%}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;font-weight:600}
+.input,select.input{width:100%;border:1px solid var(--line);border-radius:var(--radius-s);padding:10px 12px;min-height:44px;background:var(--bg)}
+.input:focus{outline:2px solid var(--focus);outline-offset:0;border-color:transparent}
+.field-help{font-size:13px;color:var(--ink-3)}
+.field-error{font-size:13px;color:var(--danger);font-weight:600}
+.input[aria-invalid="true"]{border-color:var(--danger)}
+.hint{font-size:13px;color:var(--ink-3)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.link-btn{border:0;background:none;color:var(--brand);font-weight:600;cursor:pointer;padding:0;font-size:inherit}
+.link-btn:hover{text-decoration:underline}
+
+/* Auth / centered screens */
+.center{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
+.center-pane{display:flex;align-items:center;justify-content:center;padding:48px 24px}
+.card-narrow{width:100%;max-width:380px}
+.brand-pane{background:var(--surface);border-left:1px solid var(--line);display:flex;align-items:center;justify-content:center;padding:48px}
+.brand-pane .demo{max-width:440px;width:100%}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;letter-spacing:-.01em}
+.logo-mark{width:26px;height:26px;border-radius:7px;background:var(--brand);display:grid;place-items:center;flex:none}
+.auth-title{font-size:30px;line-height:1.2;font-weight:700;letter-spacing:-.02em;margin:40px 0 8px}
+.auth-sub{color:var(--ink-2);margin:0 0 28px}
+.oauth{display:flex;flex-direction:column;gap:10px}
+.oauth .btn{justify-content:flex-start;padding-left:16px;font-weight:500}
+.oauth .btn svg{flex:none}
+.legal{font-size:13px;color:var(--ink-3);margin-top:24px}
+.demo-q{font-weight:600;font-size:17px;margin:0 0 10px}
+.demo-a{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-m);padding:18px;font-size:15px;line-height:1.7}
+.single{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:32px 20px}
+.single .panel{width:100%;max-width:460px}
+.single h1{font-size:26px;line-height:1.25;margin:28px 0 8px;letter-spacing:-.015em}
+.single p{color:var(--ink-2);margin:0 0 24px}
+.check-row{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:var(--radius-s);cursor:pointer}
+.check-row input{margin-top:4px;width:18px;height:18px;accent-color:var(--brand)}
+.check-row b{display:block;font-size:15px}
+.check-row span{font-size:14px;color:var(--ink-2)}
+.big-num{font-size:64px;font-weight:700;letter-spacing:-.03em;color:var(--ink-3);margin:0}
+
+/* App shell */
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100%}
+.side{border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;gap:28px;position:sticky;top:0;height:100vh;background:var(--bg)}
+.side .logo{padding:0 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius-s);color:var(--ink-2);font-weight:500;text-decoration:none;min-height:44px}
+.nav a:hover{background:var(--surface)}
+.nav a[aria-current="page"]{background:var(--surface-2);color:var(--ink);font-weight:600}
+.nav svg{flex:none}
+.ws{margin-top:auto;padding:0 8px 52px;font-size:13px;color:var(--ink-3)}
+.ws strong{display:block;color:var(--ink-2);font-weight:600;font-size:14px}
+.main{display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 32px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;flex-wrap:wrap}
+.top h1{margin:0;font-size:18px;font-weight:600}
+.top-right{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.role{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-3)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:999px;cursor:pointer;font-size:14px;color:var(--ink-2);min-height:32px}
+.seg button[aria-pressed="true"]{background:var(--bg);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.presence{display:flex;align-items:center}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;border:2px solid var(--bg);margin-left:-8px;color:#fff;flex:none}
+.av:first-child{margin-left:0}
+.av-lg{width:36px;height:36px;font-size:13px;margin:0;border:0}
+.presence-label{font-size:13px;color:var(--ink-3);margin-left:8px}
+.acct{position:relative}
+.acct-btn{border:0;background:none;padding:0;border-radius:50%;cursor:pointer;min-width:36px;min-height:36px}
+.menu{position:absolute;right:0;top:calc(100% + 8px);width:260px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:8px;z-index:30}
+.menu[hidden]{display:none}
+.menu-head{padding:10px 10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.menu-head b{display:block;font-size:15px}
+.menu-head span{font-size:13px;color:var(--ink-3)}
+.menu-label{font-size:13px;color:var(--ink-3);padding:8px 10px 4px}
+.menu .seg{margin:0 10px 8px;display:flex}
+.menu .seg button{flex:1}
+.menu-item{display:flex;width:100%;align-items:center;gap:10px;border:0;background:none;padding:10px;border-radius:var(--radius-s);cursor:pointer;text-align:left;min-height:40px;color:var(--ink)}
+.menu-item:hover{background:var(--surface)}
+.content{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto}
+.view{padding:40px 32px 140px;max-width:860px;width:100%;margin:0 auto}
+.view:focus{outline:none}
+h2.page{margin:0;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-.015em}
+.lede{color:var(--ink-2);margin:6px 0 0;max-width:62ch}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+
+/* Banner */
+.banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:var(--radius-s);background:var(--danger-soft);color:var(--ink);margin-top:24px;font-size:14px}
+.banner svg{color:var(--danger);flex:none;margin-top:2px}
+.banner b{display:block}
+
+/* Ask */
+.thread{display:flex;flex-direction:column;gap:40px;margin-top:36px}
+.q{font-size:20px;font-weight:600;line-height:1.35;margin:0}
+.q-meta{font-size:13px;color:var(--ink-3);margin-top:4px}
+.answer{margin-top:14px;font-size:17px;line-height:1.7}
+.answer p{margin:0 0 12px}
+.cite{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;margin:0 2px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-size:12px;font-weight:700;color:var(--brand);cursor:pointer;vertical-align:2px;line-height:1}
+.cite:hover,.cite[aria-expanded="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.status{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-radius:var(--radius-s);margin-top:6px;font-size:14px}
+.status svg{flex:none;margin-top:2px}
+.status b{font-weight:700;display:block}
+.status span{color:var(--ink-2)}
+.st-verified{background:var(--brand-soft)} .st-verified b{color:var(--brand)}
+.st-partial{background:var(--amber-soft)} .st-partial b{color:var(--amber)}
+.st-none{background:var(--slate-soft)}
+.removed{font-size:13px;color:var(--ink-3);margin-top:8px}
+.fb{display:flex;align-items:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.icon-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);border-radius:var(--radius-s);padding:6px 10px;min-height:36px;cursor:pointer;color:var(--ink-2);font-size:14px}
+.icon-btn:hover{background:var(--surface)}
+.icon-btn[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.fb-panel{margin-top:12px;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--surface)}
+.fb-panel textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:var(--radius-s);padding:10px;background:var(--bg);resize:vertical}
+.saved{font-size:14px;color:var(--brand);font-weight:600}
+.composer-wrap{position:fixed;left:240px;right:0;bottom:0;padding:16px 32px 24px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:4}
+.composer{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;border:1px solid var(--line);border-radius:var(--radius-m);padding:10px 10px 10px 16px;background:var(--bg);box-shadow:var(--shadow)}
+.composer textarea{flex:1;border:0;resize:none;outline:none;background:none;min-height:28px;max-height:160px;padding:8px 0;font-size:16px}
+.composer.disabled{opacity:.6}
+.progress{display:flex;gap:18px;font-size:14px;color:var(--ink-3);margin-top:14px;flex-wrap:wrap}
+.progress span{display:flex;align-items:center;gap:8px}
+.progress .done{color:var(--brand)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5;display:inline-block}
+.progress .active .dot{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:1;transform:scale(1.3)}}
+.empty{border:1px dashed var(--line);border-radius:var(--radius-m);padding:28px;margin-top:32px}
+.empty h3{margin:0 0 6px;font-size:17px}
+.empty p{margin:0;color:var(--ink-2);font-size:15px}
+.suggest{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.suggest button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px;cursor:pointer;font-size:14px;color:var(--ink-2);min-height:40px}
+.suggest button:hover{background:var(--surface);color:var(--ink)}
+.source{width:380px;border-left:1px solid var(--line);padding:28px 24px;position:sticky;top:65px;height:calc(100vh - 65px);overflow:auto;background:var(--bg)}
+.source[hidden]{display:none}
+.source-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.source h3{margin:0;font-size:17px;line-height:1.35}
+.source .doc{font-size:14px;color:var(--ink-3);margin-top:4px}
+.excerpt{margin-top:20px;font-size:15px;line-height:1.75;color:var(--ink-2)}
+.excerpt mark{background:var(--hl);color:var(--ink);padding:1px 2px;border-radius:3px}
+.source-note{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3);display:flex;gap:8px}
+.close{border:0;background:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--ink-3);min-width:36px;min-height:36px}
+.close:hover{background:var(--surface)}
+
+/* Tables */
+.table-wrap{overflow-x:auto;margin-top:28px}
+.table{width:100%;border-collapse:collapse;font-size:15px}
+.table th{text-align:left;font-weight:600;font-size:13px;color:var(--ink-3);padding:0 12px 10px;border-bottom:1px solid var(--line)}
+.table td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.table td:first-child,.table th:first-child{padding-left:0}
+.table td:last-child,.table th:last-child{padding-right:0;text-align:right}
+.strong{font-weight:600}
+.sub{font-size:13px;color:var(--ink-3)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.p-ready{background:var(--brand-soft);color:var(--brand)}
+.p-index{background:var(--slate-soft);color:var(--ink-2)}
+.p-fail{background:var(--danger-soft);color:var(--danger)}
+.p-partial{background:var(--amber-soft);color:var(--amber)}
+.p-none{background:var(--slate-soft);color:var(--ink-2)}
+.spin{width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.changed{font-size:13px;font-weight:600;color:var(--amber)}
+.same{font-size:13px;color:var(--ink-3)}
+.locked{margin-top:24px;padding:14px 16px;border-radius:var(--radius-s);background:var(--surface);font-size:14px;color:var(--ink-2)}
+.who{display:flex;align-items:center;gap:12px}
+.icon-only{border:0;background:none;cursor:pointer;color:var(--ink-3);padding:8px;border-radius:6px;min-width:36px;min-height:36px}
+.icon-only:hover{background:var(--surface);color:var(--danger)}
+.invite{display:grid;grid-template-columns:1fr 160px auto;gap:10px;align-items:end;margin-top:24px}
+
+/* Dialog */
+dialog{border:0;border-radius:var(--radius-l);padding:0;width:min(480px,calc(100vw - 32px));background:var(--bg);color:var(--ink);box-shadow:var(--shadow-l)}
+dialog::backdrop{background:rgba(15,20,26,.45)}
+.dlg{padding:24px}
+.dlg h2{margin:0 0 8px;font-size:20px}
+.dlg p{margin:0 0 20px;color:var(--ink-2)}
+.dlg-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;flex-wrap:wrap}
+.dropzone{border:1.5px dashed var(--line);border-radius:var(--radius-m);padding:28px;text-align:center;background:var(--surface)}
+.dropzone p{margin:6px 0 14px;font-size:14px;color:var(--ink-3)}
+.file-chip{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-s)}
+
+/* Theme toggle */
+.theme-btn{border:1px solid var(--line);background:var(--bg);color:var(--ink-2);border-radius:var(--radius-s);min-width:40px;min-height:40px;display:grid;place-items:center;cursor:pointer}
+.theme-btn:hover{background:var(--surface);color:var(--ink)}
+.theme-float{position:fixed;top:16px;right:16px;z-index:10}
+
+/* Document viewer */
+.viewer-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);text-decoration:none;font-size:14px;font-weight:600;min-height:36px}
+.back:hover{color:var(--ink)}
+.viewer-title{margin:6px 0 0;font-size:24px;line-height:1.25;font-weight:700;letter-spacing:-.01em}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:20px;padding:8px;border:1px solid var(--line);border-radius:var(--radius-m);background:var(--surface);position:sticky;top:70px;z-index:3}
+.tb-group{display:flex;align-items:center;gap:4px}
+.tb-sep{width:1px;height:24px;background:var(--line);margin:0 4px}
+.tb-btn{border:0;background:none;border-radius:var(--radius-s);min-width:40px;min-height:40px;display:grid;place-items:center;cursor:pointer;color:var(--ink-2)}
+.tb-btn:hover:not([disabled]){background:var(--bg);color:var(--ink)}
+.tb-btn[disabled]{opacity:.35;cursor:not-allowed}
+.tb-text{font-size:14px;color:var(--ink-2)}
+.page-input{width:56px;text-align:center;border:1px solid var(--line);border-radius:var(--radius-s);min-height:36px;background:var(--bg)}
+.tb-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.viewer{display:grid;grid-template-columns:132px minmax(0,1fr);gap:24px;margin-top:20px}
+.thumbs{display:flex;flex-direction:column;gap:12px;position:sticky;top:140px;align-self:start;max-height:calc(100vh - 160px);overflow:auto;padding:2px}
+.thumb{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:8px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:6px}
+.thumb[aria-current="page"]{outline:2px solid var(--brand);outline-offset:1px}
+.thumb-page{aspect-ratio:8.5/11;background:var(--surface);border-radius:3px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.thumb-page i{display:block;height:3px;border-radius:2px;background:var(--line)}
+.thumb-page i.hl{background:var(--hl)}
+.thumb span{font-size:12px;color:var(--ink-3)}
+.pages{display:flex;flex-direction:column;gap:20px;align-items:center;overflow-x:auto;padding-bottom:20px}
+.pdf-page{background:#fff;color:#1F2933;width:var(--page-w,640px);max-width:100%;aspect-ratio:8.5/11;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(27,35,46,.08);border-radius:4px;padding:7% 8%;font-family:Georgia,"Times New Roman",serif;font-size:calc(var(--page-w,640px) * .0225);line-height:1.6;position:relative;border:1px solid #E4E7EB}
+.pdf-page h4{font-family:var(--font);font-size:1.35em;margin:0 0 .8em;color:#1B232E}
+.pdf-page p{margin:0 0 .9em}
+.pdf-page mark{background:#FFE58A;color:#1B232E;padding:0 2px;border-radius:2px;box-shadow:0 0 0 2px #FFE58A}
+.pdf-page .pg-num{position:absolute;bottom:4%;left:0;right:0;text-align:center;font-family:var(--font);font-size:.8em;color:#6B7480}
+.cited-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--font);font-size:.75em;font-weight:700;color:#1E6B52;background:#E7F2EE;border-radius:999px;padding:2px 10px;margin-bottom:.6em}
+.md-doc{max-width:680px;width:100%;font-size:16px;line-height:1.75}
+.md-doc h4{font-size:20px;margin:28px 0 8px}
+.md-doc mark{background:var(--hl);color:var(--ink);padding:1px 2px;border-radius:3px}
+.open-page{margin-top:16px}
+
+/* Toast & prototype menu */
+.toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--radius-s);font-size:14px;font-weight:600;box-shadow:var(--shadow);z-index:60}
+.toast[hidden]{display:none}
+.proto{position:fixed;left:16px;bottom:16px;z-index:50}
+.proto-btn{border:1px solid var(--line);background:var(--bg);color:var(--ink-2);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--shadow);min-height:36px}
+.proto .menu{left:0;right:auto;top:auto;bottom:calc(100% + 8px)}
+
+@media (max-width: 1180px){ .source{position:fixed;right:0;top:0;height:100vh;z-index:15;box-shadow:var(--shadow)} }
+@media (max-width: 900px){
+  .center{grid-template-columns:1fr} .brand-pane{display:none}
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;padding:10px 16px;border-right:0;border-bottom:1px solid var(--line);gap:12px;overflow-x:auto}
+  .side .logo span:last-child{display:none}
+  .nav{flex-direction:row}
+  .nav a{padding:8px 10px;white-space:nowrap}
+  .ws{display:none}
+  .composer-wrap{left:0;padding:12px 16px 16px}
+  .top{padding:12px 16px;position:static}
+  .view{padding:28px 16px 140px}
+  .source{width:100%;top:auto;bottom:0;height:72vh;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0}
+  h2.page{font-size:24px}
+  .invite{grid-template-columns:1fr}
+  .viewer{grid-template-columns:1fr}
+  .thumbs{display:none}
+  .toolbar{top:0}
+}
+@media (max-width: 600px){
+  .nav .label-text{display:none}
+  .presence{display:none}
+  .role > span{display:none}
+  .tb-sep{display:none}
+  .hide-sm{display:none}
+}
+@media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle"><div class="dlg" id="dlgBody"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<div class="proto">
+  <div class="menu" id="protoMenu" hidden role="menu" aria-label="Prototype screens">
+    <div class="menu-label">Jump to a screen</div>
+    <button class="menu-item" role="menuitem" data-go="#/signin">Sign in</button>
+    <button class="menu-item" role="menuitem" data-go="#/welcome">Create workspace</button>
+    <button class="menu-item" role="menuitem" data-go="#/no-access">No access</button>
+    <button class="menu-item" role="menuitem" data-go="#/ask">Ask</button>
+    <button class="menu-item" role="menuitem" data-go="#/documents">Documents</button>
+    <button class="menu-item" role="menuitem" data-go="#/documents/d1/2">Document viewer</button>
+    <button class="menu-item" role="menuitem" data-go="#/evals">Evals</button>
+    <button class="menu-item" role="menuitem" data-go="#/team">Team</button>
+    <button class="menu-item" role="menuitem" data-go="#/404">Not found</button>
+    <div class="menu-label">Simulate</div>
+    <button class="menu-item" role="menuitem" data-sim="empty">Empty workspace</button>
+    <button class="menu-item" role="menuitem" data-sim="aierror">AI service error</button>
+    <button class="menu-item" role="menuitem" data-sim="reset">Reset demo data</button>
+  </div>
+  <button class="proto-btn" id="protoBtn" aria-expanded="false" aria-controls="protoMenu">Prototype screens</button>
+</div>
+
+<script>
+/* ---------- Data ---------- */
+const passages = {
+  "remote-1":{docId:"d1",page:2,doc:"Remote Work Policy",section:"Section 2: Eligibility and schedule",text:"Full-time employees who have completed their first 90 days may <mark>work remotely up to three days per week</mark>, provided their manager approves the schedule in advance."},
+  "remote-2":{docId:"d1",page:4,doc:"Remote Work Policy",section:"Section 4: Core hours",text:"Regardless of location, team members are expected to be <mark>available during core hours, 10:00 a.m. to 3:00 p.m. local time</mark>, for meetings and collaboration."},
+  "expense-3":{docId:"d2",page:5,doc:"Expense Guidelines",section:"Section 5: Travel",text:"Domestic travel is reimbursed at a <mark>daily meal allowance of $60</mark>. Receipts are required for any single expense over $25."},
+  "onboard-1":{docId:"d3",page:1,doc:"Onboarding Handbook",section:"Week one",text:"New hires are paired with an onboarding buddy who <mark>schedules a check-in at the end of week one</mark> and again at day 30."},
+};
+const seed = () => ({
+  answers:[{id:"a1",q:"How many days a week can I work remotely?",by:"Amara M.",status:"verified",
+    body:"After your first 90 days, you can work remotely up to three days a week once your manager approves the schedule [p:remote-1]. Wherever you work, you're expected to be available during core hours, 10:00 a.m. to 3:00 p.m. [p:remote-2]",
+    cites:["remote-1","remote-2"],removed:[],vote:null,ups:2,downs:0,fbOpen:false,saved:false}],
+  docs:[
+    {id:"d1",name:"Remote Work Policy",meta:"PDF, 6 pages",type:"pdf",pages:6,by:"Joshua D.",status:"ready"},
+    {id:"d2",name:"Expense Guidelines",meta:"PDF, 11 pages",type:"pdf",pages:11,by:"Amara M.",status:"ready"},
+    {id:"d3",name:"Onboarding Handbook",meta:"Markdown, 2,400 words",type:"md",pages:1,by:"Joshua D.",status:"ready"},
+    {id:"d4",name:"Benefits Summary 2026",meta:"PDF, 3 pages",type:"pdf",pages:3,by:"Kenji O.",status:"failed"},
+  ],
+  evals:[
+    {q:"Do interns get a learning stipend?",last:"none",run:"Nov 21",change:null},
+    {q:"What's the meal allowance for international travel?",last:"partial",run:"Nov 21",change:null},
+  ],
+  members:[
+    {id:"m1",name:"Joshua Dominick",email:"joshua@northwind.example",role:"owner",color:"#1E6B52",you:true},
+    {id:"m2",name:"Amara Mensah",email:"amara@northwind.example",role:"editor",color:"#3E5BA9"},
+    {id:"m3",name:"Kenji Ono",email:"kenji@northwind.example",role:"viewer",color:"#8A4E8C"},
+  ],
+  invites:[{email:"lena@northwind.example",role:"viewer",sent:"2 days ago"}],
+});
+const state = Object.assign({role:"owner",openCite:null,aiError:false,workspace:"Northwind Ops",theme:"system",menuOpen:false,zoom:100,hlCite:"remote-1"}, seed());
+const can = {
+  upload:()=>state.role!=="viewer", deleteDoc:()=>state.role!=="viewer",
+  saveEval:()=>state.role!=="viewer", runEvals:()=>state.role==="owner", manageTeam:()=>state.role==="owner",
+};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const initials=n=>n.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase();
+const roleName=r=>({owner:"Owner",editor:"Editor",viewer:"Viewer"}[r]);
+
+/* ---------- Icons ---------- */
+const I = {
+  mark:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 12.5h12M4 9.5h8M6 6.5h4M8 2v4.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  ask:'<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 5.5h12M4 10h8M4 14.5h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  doc:'<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M6 2.8h5.5L15 6.3v10.9H6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M11.3 3v3.5H15" stroke="currentColor" stroke-width="1.6"/></svg>',
+  evals:'<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3.5 10.5l3.5 3.5 9-9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  team:'<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="7.5" cy="7" r="2.8" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 16c.6-2.6 2.6-4 5-4s4.4 1.4 5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13 4.6a2.6 2.6 0 010 4.8M15 12.4c1.3.6 2.1 1.8 2.5 3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  check:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.2l2 2 4-4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  warn:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.8l6.6 11.7H1.4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.3v3.3M8 11.6v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  search:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  up:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 7.2V14H2.5V7.2zM5 7.2l3-5c1.1 0 1.8.8 1.6 1.9l-.5 2.4h3.6c.9 0 1.5.8 1.3 1.7l-1.1 4.6c-.2.7-.8 1.2-1.5 1.2H5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  down:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M5 8.8V2H2.5v6.8zM5 8.8l3 5c1.1 0 1.8-.8 1.6-1.9l-.5-2.4h3.6c.9 0 1.5-.8 1.3-1.7l-1.1-4.6C12.7 2.5 12.1 2 11.4 2H5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  x:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  shield:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5l5.5 2v4.2c0 3.3-2.3 5.9-5.5 6.8-3.2-.9-5.5-3.5-5.5-6.8V3.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  trash:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.5h6.6L13 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  out:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M7 3H3.5v12H7M11.5 5.5L15 9l-3.5 3.5M15 9H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  sun:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="3.3" stroke="currentColor" stroke-width="1.5"/><path d="M9 1.5v1.8M9 14.7v1.8M1.5 9h1.8M14.7 9h1.8M3.7 3.7l1.3 1.3M13 13l1.3 1.3M3.7 14.3L5 13M13 5l1.3-1.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+  moon:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M15 10.8A6.5 6.5 0 017.2 3a6.5 6.5 0 107.8 7.8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  left:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M11 4L6 9l5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  right:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M7 4l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  plus:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 4v10M4 9h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  minus:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4 9h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  download:'<svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2.5v9M5.5 8L9 11.5 12.5 8M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  google:'<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.6 9.2c0-.6-.1-1.2-.2-1.7H9v3.3h4.8a4.1 4.1 0 01-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"/><path fill="#34A853" d="M9 18c2.4 0 4.5-.8 5.9-2.2L12 13.6c-.8.5-1.8.9-3 .9-2.3 0-4.3-1.6-5-3.7H1v2.3A9 9 0 009 18z"/><path fill="#FBBC05" d="M4 10.8a5.4 5.4 0 010-3.5V5H1a9 9 0 000 8.1z"/><path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.4A9 9 0 001 5l3 2.3c.7-2.1 2.7-3.7 5-3.7z"/></svg>',
+  ms:'<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="#F25022" d="M1 1h7.5v7.5H1z"/><path fill="#7FBA00" d="M9.5 1H17v7.5H9.5z"/><path fill="#00A4EF" d="M1 9.5h7.5V17H1z"/><path fill="#FFB900" d="M9.5 9.5H17V17H9.5z"/></svg>',
+  apple:'<svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path fill="currentColor" d="M13.4 9.6c0-1.9 1.6-2.8 1.6-2.9-.9-1.3-2.2-1.4-2.7-1.5-1.1-.1-2.2.7-2.8.7-.6 0-1.5-.7-2.5-.6-1.3 0-2.5.8-3.1 1.9-1.4 2.4-.4 5.9.9 7.8.7.9 1.4 2 2.4 1.9 1-.1 1.3-.6 2.5-.6s1.5.6 2.5.6c1 0 1.7-1 2.3-1.9.7-1.1 1-2.1 1-2.2 0 0-2-.8-2.1-3.2zM11.6 3.9c.5-.6.9-1.5.8-2.4-.8 0-1.7.5-2.3 1.1-.5.6-.9 1.5-.8 2.3.9.1 1.8-.4 2.3-1z"/></svg>',
+};
+const logo = `<div class="logo"><span class="logo-mark">${I.mark}</span><span>Groundwork</span></div>`;
+const darkMQ = matchMedia("(prefers-color-scheme: dark)");
+function effectiveTheme(){ return state.theme==="system" ? (darkMQ.matches?"dark":"light") : state.theme; }
+function themeBtn(extra=""){
+  const dark = effectiveTheme()==="dark";
+  return `<button class="theme-btn ${extra}" data-theme-toggle aria-label="Switch to ${dark?"light":"dark"} mode" title="Switch to ${dark?"light":"dark"} mode">${dark?I.sun:I.moon}</button>`;
+}
+
+/* ---------- Shared components ---------- */
+function statusBlock(a){
+  if(a.status==="verified") return `<div class="status st-verified">${I.check}<div><b>Verified</b><span>${a.cites.length} of ${a.cites.length} citations match passages retrieved from your documents.</span></div></div>`;
+  if(a.status==="partial") return `<div class="status st-partial">${I.warn}<div><b>Partially verified</b><span>${a.removed.length} citation didn't match a retrieved passage and was removed.</span></div></div>`;
+  return `<div class="status st-none">${I.search}<div><b>Not in your documents</b><span>No retrieved passage supports an answer, so Groundwork didn't guess.</span></div></div>`;
+}
+function evalPill(s){
+  return s==="verified"?`<span class="pill p-ready">Verified</span>`:s==="partial"?`<span class="pill p-partial">Partially verified</span>`:`<span class="pill p-none">Not found</span>`;
+}
+function docPill(d){
+  if(d.status==="ready") return `<span class="pill p-ready">Ready</span>`;
+  if(d.status==="indexing") return `<span class="pill p-index"><span class="spin" aria-hidden="true"></span>Indexing</span>`;
+  return `<span class="pill p-fail">Couldn't read file</span>`;
+}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2400);}
+function openDialog(html){ $("#dlgBody").innerHTML=html; const d=$("#dlg"); if(!d.open) d.showModal(); const f=d.querySelector("[autofocus]"); if(f) f.focus(); }
+function closeDialog(){ const d=$("#dlg"); if(d.open) d.close(); }
+function confirmDialog({title,body,action,danger=true,onConfirm}){
+  openDialog(`<h2 id="dlgTitle">${esc(title)}</h2><p>${body}</p>
+    <div class="dlg-actions"><button class="btn btn-ghost" data-dlg="cancel">Cancel</button>
+    <button class="btn ${danger?"btn-danger":"btn-primary"}" data-dlg="confirm" autofocus>${esc(action)}</button></div>`);
+  confirmDialog._cb=onConfirm;
+}
+
+/* ---------- Screens: auth & first run ---------- */
+function screenSignin(){
+  return themeBtn("theme-float") + `<div class="center">
+    <div class="center-pane"><div class="card-narrow">
+      ${logo}
+      <h1 class="auth-title">Answers your team can trust</h1>
+      <p class="auth-sub">Sign in to ask questions about your team's documents. Every answer shows exactly where it came from.</p>
+      <div class="oauth">
+        <button class="btn btn-ghost" data-signin>${I.google}Continue with Google</button>
+        <button class="btn btn-ghost" data-signin>${I.ms}Continue with Microsoft</button>
+        <button class="btn btn-ghost" data-signin>${I.apple}Continue with Apple</button>
+      </div>
+      <p class="legal">Sign-in is handled securely by DeepSpace. Groundwork only sees your name and email.</p>
+    </div></div>
+    <div class="brand-pane" aria-hidden="true"><div class="demo">
+      <p class="demo-q">How many days a week can I work remotely?</p>
+      <div class="demo-a">Up to three days a week after your first 90 days, with manager approval <span class="cite">1</span>. Core hours are 10:00 a.m. to 3:00 p.m. <span class="cite">2</span>
+        <div class="status st-verified" style="margin-top:14px">${I.check}<div><b>Verified</b><span>2 of 2 citations match retrieved passages.</span></div></div>
+      </div>
+    </div></div>
+  </div>`;
+}
+function screenWelcome(){
+  return themeBtn("theme-float") + `<div class="single"><div class="panel">
+    ${logo}
+    <h1>Set up your workspace</h1>
+    <p>You'll be the owner. You can invite teammates and upload documents next.</p>
+    <form id="wsForm" novalidate style="display:flex;flex-direction:column;gap:18px">
+      <div class="field">
+        <label for="wsName">Workspace name</label>
+        <input class="input" id="wsName" value="Northwind Ops" aria-describedby="wsHelp wsErr">
+        <span class="field-help" id="wsHelp">Usually your team or company name.</span>
+        <span class="field-error" id="wsErr" hidden>Enter a workspace name.</span>
+      </div>
+      <label class="check-row"><input type="checkbox" id="wsSample" checked>
+        <div><b>Start with sample documents</b><span>Three short public policies so you can try questions right away. You can delete them later.</span></div></label>
+      <button class="btn btn-primary btn-block" type="submit">Create workspace</button>
+    </form>
+  </div></div>`;
+}
+function screenNoAccess(){
+  return themeBtn("theme-float") + `<div class="single"><div class="panel">
+    ${logo}
+    <h1>You don't have access to this workspace yet</h1>
+    <p>You're signed in as kenji@northwind.example. Ask the workspace owner to invite you, then refresh this page.</p>
+    <div class="row"><button class="btn btn-primary" data-copy>Copy my email</button><button class="btn btn-ghost" data-signout>Sign in with another account</button></div>
+  </div></div>`;
+}
+function screen404(){
+  return themeBtn("theme-float") + `<div class="single"><div class="panel">
+    ${logo}
+    <p class="big-num" style="margin-top:28px">404</p>
+    <h1 style="margin-top:4px">This page doesn't exist</h1>
+    <p>The link may be old, or the page was moved.</p>
+    <a class="btn btn-primary" href="#/ask">Go to Ask</a>
+  </div></div>`;
+}
+
+/* ---------- App shell ---------- */
+const navItems=[["ask","Ask",I.ask],["documents","Documents",I.doc],["evals","Evals",I.evals],["team","Team",I.team]];
+function shell(view, inner, withComposer, title){
+  const me = state.members.find(m=>m.you);
+  const readyDocs = state.docs.filter(d=>d.status==="ready").length;
+  return `<div class="app">
+    <aside class="side" aria-label="Main">
+      ${logo}
+      <nav class="nav" aria-label="Sections">
+        ${navItems.map(([k,l,ic])=>`<a href="#/${k}" aria-current="${k===view?"page":"false"}">${ic}<span class="label-text">${l}</span></a>`).join("")}
+      </nav>
+      <div class="ws"><strong>${esc(state.workspace)}</strong>${readyDocs} document${readyDocs===1?"":"s"} ready</div>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <h1>${title || navItems.find(n=>n[0]===view)[1]}</h1>
+        <div class="top-right">
+          <div class="role" role="group" aria-label="Preview as role (prototype only)">
+            <span>Preview as</span>
+            <div class="seg">${["owner","editor","viewer"].map(r=>`<button data-role="${r}" aria-pressed="${state.role===r}">${roleName(r)}</button>`).join("")}</div>
+          </div>
+          <div class="presence" aria-label="3 teammates online">
+            ${state.members.map(m=>`<span class="av" style="background:${m.color}" title="${esc(m.name)}">${initials(m.name)}</span>`).join("")}
+            <span class="presence-label">3 online</span>
+          </div>
+          ${themeBtn()}
+          <div class="acct">
+            <button class="acct-btn" id="acctBtn" aria-haspopup="menu" aria-expanded="${state.menuOpen}" aria-label="Account menu">
+              <span class="av av-lg" style="background:${me.color}">${initials(me.name)}</span></button>
+            <div class="menu" id="acctMenu" role="menu" ${state.menuOpen?"":"hidden"}>
+              <div class="menu-head"><b>${esc(me.name)}</b><span>${esc(me.email)}</span><br><span>${roleName(state.role)} in ${esc(state.workspace)}</span></div>
+              <div class="menu-label">Theme</div>
+              <div class="seg" role="group" aria-label="Theme">${["system","light","dark"].map(t=>`<button data-theme-set="${t}" aria-pressed="${state.theme===t}">${t[0].toUpperCase()+t.slice(1)}</button>`).join("")}</div>
+              <button class="menu-item" role="menuitem" data-signout>${I.out}Sign out</button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div class="content">
+        <main class="view" id="view" tabindex="-1">${inner}</main>
+        <aside class="source" id="source" hidden aria-label="Source passage"></aside>
+      </div>
+    </div>
+  </div>
+  ${withComposer ? composer() : ""}`;
+}
+function composer(){
+  const ready = state.docs.some(d=>d.status==="ready");
+  return `<div class="composer-wrap"><form class="composer ${ready?"":"disabled"}" id="composer">
+    <label for="qInput" class="sr-only">Ask a question about your documents</label>
+    <textarea id="qInput" rows="1" placeholder="${ready?"Ask a question about your team's documents":"Add a document before asking questions"}" ${ready?"":"disabled"}></textarea>
+    <button class="btn btn-primary" type="submit" ${ready?"":"disabled"}>Ask</button>
+  </form></div>`;
+}
+
+/* ---------- Views ---------- */
+function renderBody(a){
+  if(a.status==="none") return `<p>I couldn't find this in your documents. Try rephrasing, or ask an editor to upload a document that covers it.</p>`;
+  let html=esc(a.body);
+  a.cites.forEach((id,i)=>{ html=html.replace(`[p:${id}]`,`<button class="cite" data-cite="${id}" aria-expanded="${state.openCite===id}" aria-label="Source ${i+1}: ${esc(passages[id].doc)}">${i+1}</button>`); });
+  return `<p>${html}</p>`;
+}
+function answerCard(a){
+  const fb = a.fbOpen ? `<div class="fb-panel">
+      <label for="note-${a.id}" class="strong" style="font-size:14px">What was wrong with this answer?</label>
+      <textarea id="note-${a.id}" placeholder="Optional. Helps your team fix the source documents."></textarea>
+      <div class="row">${can.saveEval()
+        ? (a.saved?`<span class="saved">Saved as eval case</span>`:`<button class="btn btn-primary" data-save="${a.id}">Save as eval case</button>`)
+        : `<button class="btn btn-primary" disabled>Save as eval case</button><span class="hint">Editors and owners can save eval cases.</span>`}
+        <button class="btn btn-ghost" data-closefb="${a.id}">Done</button></div></div>` : "";
+  return `<article aria-labelledby="q-${a.id}">
+    <h3 class="q" id="q-${a.id}">${esc(a.q)}</h3>
+    <div class="q-meta">Asked by ${esc(a.by)}</div>
+    <div class="answer">${renderBody(a)}</div>
+    ${statusBlock(a)}
+    ${a.removed.length?`<div class="removed">Removed citation: <s>[p:${a.removed[0]}]</s>, not among the retrieved passages.</div>`:""}
+    <div class="fb">
+      <button class="icon-btn" data-vote="up" data-id="${a.id}" aria-pressed="${a.vote==="up"}" aria-label="Helpful, ${a.ups} votes">${I.up}<span>${a.ups}</span></button>
+      <button class="icon-btn" data-vote="down" data-id="${a.id}" aria-pressed="${a.vote==="down"}" aria-label="Not helpful, ${a.downs} votes">${I.down}<span>${a.downs}</span></button>
+    </div>${fb}</article>`;
+}
+function viewAsk(){
+  const ready = state.docs.some(d=>d.status==="ready");
+  const err = state.aiError ? `<div class="banner" role="alert">${I.warn}<div><b>Groundwork couldn't reach the AI service</b>Your question wasn't answered. Try again in a moment. <button class="link-btn" data-sim="clearerr">Try again</button></div></div>` : "";
+  if(!ready) return `<h2 class="page">Ask your documents</h2>
+    <div class="empty"><h3>No documents yet</h3>
+    <p>${can.upload()?"Upload a policy, handbook, or notes file and you can start asking questions about it.":"An editor needs to upload documents before anyone can ask questions. Ask an owner or editor on your team."}</p>
+    ${can.upload()?`<div class="row" style="margin-top:16px"><button class="btn btn-primary" data-upload>Upload document</button></div>`:""}</div>`;
+  const list = state.answers.slice().reverse().map(answerCard).join("");
+  return `<h2 class="page">Ask your documents</h2>
+    <p class="lede">Every answer cites the exact passage it came from. If a citation doesn't match what was retrieved, it's removed before you see it.</p>
+    ${err}<div id="pending"></div>
+    <div class="thread">${list}</div>
+    ${state.answers.length<2?`<div class="empty"><h3>Try a question</h3><p>These sample questions show each verification result.</p>
+      <div class="suggest">
+        <button data-suggest="What's the meal allowance for travel?">What's the meal allowance for travel?</button>
+        <button data-suggest="Do interns get equity?">Do interns get equity?</button>
+        <button data-suggest="When is my first onboarding check-in?">When is my first onboarding check-in?</button>
+      </div></div>`:""}`;
+}
+function viewDocs(){
+  const rows = state.docs.map(d=>`<tr>
+      <td><div class="strong">${d.status==="ready"?`<a href="#/documents/${d.id}/1" style="color:inherit">${esc(d.name)}</a>`:esc(d.name)}</div><div class="sub">${esc(d.meta)}${d.status==="failed"?" · The file may be scanned or password-protected.":""}</div></td>
+      <td class="hide-sm">${esc(d.by)}</td>
+      <td>${docPill(d)}${d.status==="failed"&&can.upload()?` <button class="link-btn" data-retry="${d.id}" style="font-size:13px;margin-left:6px">Retry</button>`:""}</td>
+      <td>${can.deleteDoc()?`<button class="icon-only" data-del="${d.id}" aria-label="Delete ${esc(d.name)}">${I.trash}</button>`:""}</td>
+    </tr>`).join("");
+  return `<div class="page-head"><div><h2 class="page">Documents</h2>
+      <p class="lede">Answers come only from these documents.</p></div>
+      ${can.upload()?`<button class="btn btn-primary" data-upload>Upload document</button>`:""}</div>
+    ${can.upload()?"":`<div class="locked">You're a viewer. You can ask questions, but only editors and owners can upload or delete documents.</div>`}
+    ${state.docs.length ? `<div class="table-wrap"><table class="table">
+      <thead><tr><th>Document</th><th class="hide-sm">Uploaded by</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`
+    : `<div class="empty"><h3>No documents yet</h3><p>Upload your first document to start asking questions.</p></div>`}`;
+}
+function viewEvals(){
+  if(!state.evals.length) return `<h2 class="page">Evals</h2><div class="empty"><h3>No eval cases yet</h3><p>When an answer is wrong, mark it not helpful and save it as an eval case. You can re-run every case after documents change.</p></div>`;
+  const rows = state.evals.map(e=>`<tr>
+    <td><div class="strong">${esc(e.q)}</div></td><td>${evalPill(e.last)}</td>
+    <td class="hide-sm"><span class="sub">${esc(e.run)}</span></td>
+    <td>${e.change===null?`<span class="same">Not re-run yet</span>`:e.change?`<span class="changed">Changed</span>`:`<span class="same">No change</span>`}</td></tr>`).join("");
+  return `<div class="page-head"><div><h2 class="page">Evals</h2>
+    <p class="lede">Questions your team flagged as wrong. Re-run them after documents change to see which answers improved.</p></div>
+    ${can.runEvals()?`<button class="btn btn-primary" id="runEvals">Re-run all ${state.evals.length}</button>`:""}</div>
+    ${can.runEvals()?"":`<div class="locked">Only owners can re-run evals.</div>`}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>Question</th><th>Latest result</th><th class="hide-sm">Last run</th><th>Since last run</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+}
+function viewTeam(){
+  const owner = can.manageTeam();
+  const rows = state.members.map(m=>`<tr>
+    <td><div class="who"><span class="av av-lg" style="background:${m.color}">${initials(m.name)}</span>
+      <div><div class="strong">${esc(m.name)}${m.you?' <span class="sub">(you)</span>':""}</div><div class="sub">${esc(m.email)}</div></div></div></td>
+    <td>${owner && !m.you
+      ? `<label class="sr-only" for="role-${m.id}">Role for ${esc(m.name)}</label><select class="input" id="role-${m.id}" data-rolefor="${m.id}" style="width:140px;min-height:40px">${["owner","editor","viewer"].map(r=>`<option value="${r}" ${m.role===r?"selected":""}>${roleName(r)}</option>`).join("")}</select>`
+      : `<span>${roleName(m.role)}</span>`}</td>
+    <td>${owner && !m.you?`<button class="icon-only" data-remove="${m.id}" aria-label="Remove ${esc(m.name)}">${I.trash}</button>`:""}</td></tr>`).join("");
+  const inv = state.invites.map((v,i)=>`<tr><td><div class="strong">${esc(v.email)}</div><div class="sub">Invited ${esc(v.sent)}</div></td>
+    <td>${roleName(v.role)}</td><td>${owner?`<button class="link-btn" data-revoke="${i}" style="font-size:14px">Revoke</button>`:""}</td></tr>`).join("");
+  return `<h2 class="page">Team</h2>
+    <p class="lede">Viewers can ask questions. Editors can also manage documents and save eval cases. Owners manage the team and run evals.</p>
+    ${owner ? `<form class="invite" id="inviteForm" novalidate>
+        <div class="field"><label for="invEmail">Invite by email</label><input class="input" id="invEmail" type="email" placeholder="name@company.com" aria-describedby="invErr"><span class="field-error" id="invErr" hidden>Enter a valid email address.</span></div>
+        <div class="field"><label for="invRole">Role</label><select class="input" id="invRole"><option value="viewer">Viewer</option><option value="editor">Editor</option><option value="owner">Owner</option></select></div>
+        <button class="btn btn-primary" type="submit">Send invite</button></form>`
+      : `<div class="locked">Only owners can invite people or change roles.</div>`}
+    <div class="table-wrap"><table class="table"><thead><tr><th>Member</th><th>Role</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${state.invites.length?`<h3 style="margin:36px 0 0;font-size:17px">Pending invites</h3><div class="table-wrap" style="margin-top:12px"><table class="table"><tbody>${inv}</tbody></table></div>`:""}`;
+}
+
+/* ---------- Document viewer ---------- */
+const filler = [
+  "This policy applies to all full-time and part-time employees of Northwind Ops unless a separate agreement states otherwise.",
+  "Managers are responsible for applying this policy consistently and documenting any approved exceptions.",
+  "Questions about this policy should be directed to People Operations. This document is reviewed once a year.",
+  "Where this policy conflicts with local law, local law takes precedence for employees in that location.",
+];
+function pageContent(doc,n){
+  const cited = Object.entries(passages).filter(([id,p])=>p.docId===doc.id && p.page===n);
+  const hlId = state.hlCite && passages[state.hlCite] && passages[state.hlCite].docId===doc.id && passages[state.hlCite].page===n ? state.hlCite : null;
+  let html = cited.length ? `<h4>${esc(cited[0][1].section)}</h4>` : `<h4>${esc(doc.name)}, part ${n}</h4>`;
+  html += `<p>${filler[(n)%4]}</p>`;
+  cited.forEach(([id,p])=>{
+    const text = id===hlId ? p.text : p.text.replace(/<\/?mark>/g,"");
+    html += `${id===hlId?'<span class="cited-tag">Cited in your answer</span>':""}<p>${text}</p>`;
+  });
+  html += `<p>${filler[(n+1)%4]}</p><p>${filler[(n+2)%4]}</p>`;
+  return html;
+}
+function viewViewer(docId, pageN){
+  const doc = state.docs.find(d=>d.id===docId);
+  if(!doc || doc.status!=="ready") return null;
+  const total = doc.pages, n = Math.min(Math.max(1,pageN||1),total);
+  const pw = Math.round(640*state.zoom/100);
+  const back = `<a class="back" href="#/documents">${I.left}Documents</a>`;
+  if(doc.type==="md"){
+    return `${back}<div class="viewer-head"><div><h2 class="viewer-title">${esc(doc.name)}</h2><div class="sub">${esc(doc.meta)}</div></div>
+      <button class="btn btn-ghost" data-download>${I.download}Download</button></div>
+      <article class="md-doc" style="margin-top:24px">${pageContent(doc,1)}</article>`;
+  }
+  const thumbs = Array.from({length:total},(_,i)=>{
+    const hasCite = Object.values(passages).some(p=>p.docId===doc.id&&p.page===i+1);
+    return `<button class="thumb" data-page="${i+1}" aria-current="${i+1===n?"page":"false"}" aria-label="Page ${i+1}${hasCite?", contains a cited passage":""}">
+      <div class="thumb-page" aria-hidden="true"><i style="width:70%"></i><i></i><i ${hasCite?'class="hl"':""}></i><i style="width:85%"></i><i></i><i style="width:60%"></i></div><span>${i+1}</span></button>`;
+  }).join("");
+  return `${back}
+    <div class="viewer-head"><div><h2 class="viewer-title">${esc(doc.name)}</h2><div class="sub">${esc(doc.meta)}, uploaded by ${esc(doc.by)}</div></div></div>
+    <div class="toolbar" role="toolbar" aria-label="Document controls">
+      <div class="tb-group">
+        <button class="tb-btn" data-page="${n-1}" ${n<=1?"disabled":""} aria-label="Previous page">${I.left}</button>
+        <label class="sr-only" for="pageInput">Page number</label>
+        <input class="page-input" id="pageInput" inputmode="numeric" value="${n}" aria-describedby="pageTotal">
+        <span class="tb-text" id="pageTotal">of ${total}</span>
+        <button class="tb-btn" data-page="${n+1}" ${n>=total?"disabled":""} aria-label="Next page">${I.right}</button>
+      </div>
+      <span class="tb-sep" aria-hidden="true"></span>
+      <div class="tb-group">
+        <button class="tb-btn" data-zoom="-" ${state.zoom<=60?"disabled":""} aria-label="Zoom out">${I.minus}</button>
+        <span class="tb-text" aria-live="polite" style="min-width:44px;text-align:center">${state.zoom}%</span>
+        <button class="tb-btn" data-zoom="+" ${state.zoom>=160?"disabled":""} aria-label="Zoom in">${I.plus}</button>
+        <button class="btn btn-ghost" data-zoom="fit" style="min-height:36px;padding:6px 12px;font-size:14px">Fit width</button>
+      </div>
+      <div class="tb-right"><button class="btn btn-ghost" data-download style="min-height:36px;padding:6px 12px;font-size:14px">${I.download}Download</button></div>
+    </div>
+    <div class="viewer">
+      <nav class="thumbs" aria-label="Pages">${thumbs}</nav>
+      <div class="pages" style="--page-w:${pw}px">
+        <section class="pdf-page" id="page-${n}" aria-label="Page ${n} of ${total}">${pageContent(doc,n)}<div class="pg-num">${n}</div></section>
+      </div>
+    </div>`;
+}
+
+/* ---------- Upload dialog ---------- */
+function uploadDialog(){
+  openDialog(`<h2 id="dlgTitle">Upload a document</h2>
+    <p>PDF, Markdown, or plain text, up to 20 MB. It's indexed automatically and can be searched in about a minute.</p>
+    <div class="dropzone">${I.doc}<p>Drag a file here, or choose one from your computer.</p>
+      <div class="row" style="justify-content:center">
+        <button class="btn btn-ghost" data-pick="ok">Choose file</button>
+        <button class="btn btn-ghost" data-pick="bad" title="Prototype: simulate an unsupported file">Try an unsupported file</button></div></div>
+    <div id="pickResult"></div>
+    <div class="dlg-actions"><button class="btn btn-ghost" data-dlg="cancel">Cancel</button><button class="btn btn-primary" id="doUpload" disabled>Upload</button></div>`);
+}
+
+/* ---------- Ask flow ---------- */
+function compose(q){
+  const l=q.toLowerCase();
+  const base={id:"a"+Date.now(),q,by:"You",vote:null,ups:0,downs:0,fbOpen:false,saved:false,removed:[]};
+  if(/remote|home|hours/.test(l)) return {...base,status:"verified",body:"You can work remotely up to three days a week after your first 90 days, with your manager's approval [p:remote-1]. Core hours are 10:00 a.m. to 3:00 p.m. [p:remote-2]",cites:["remote-1","remote-2"]};
+  if(/travel|meal|expense|allowance/.test(l)) return {...base,status:"partial",body:"Domestic travel includes a daily meal allowance of $60, and receipts are required for any expense over $25 [p:expense-3]",cites:["expense-3"],removed:["intl-7"]};
+  if(/onboard|check-in|buddy|first week/.test(l)) return {...base,status:"verified",body:"Your onboarding buddy schedules a check-in at the end of your first week, and another at day 30 [p:onboard-1]",cites:["onboard-1"]};
+  return {...base,status:"none",body:"",cites:[]};
+}
+function ask(q){
+  q=q.trim(); if(!q) return;
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const n=state.docs.filter(d=>d.status==="ready").length;
+  const steps=(a,b)=>`<div style="margin-top:32px"><h3 class="q">${esc(q)}</h3><div class="progress" aria-live="polite"><span class="${a}"><i class="dot"></i>Searching ${n} documents</span><span class="${b}"><i class="dot"></i>Checking citations</span></div></div>`;
+  const p=()=>$("#pending");
+  if(p()) p().innerHTML=steps("active","");
+  const finish=()=>{ state.answers.push(compose(q)); state.openCite=null; render(); window.scrollTo({top:0,behavior:reduce?"auto":"smooth"}); };
+  if(reduce){finish();return;}
+  setTimeout(()=>{ if(p()) p().innerHTML=steps("done","active"); },700);
+  setTimeout(finish,1400);
+}
+
+/* ---------- Router & render ---------- */
+function route(){ return (location.hash||"#/signin").slice(2); }
+function render(){
+  const r=route(); const root=$("#root");
+  if(state.theme==="system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = state.theme;
+  const views={ask:[viewAsk,true],documents:[viewDocs,false],evals:[viewEvals,false],team:[viewTeam,false]};
+  const vm = r.match(/^documents\/([^/]+)(?:\/(\d+))?$/);
+  if(vm){ const html=viewViewer(vm[1], +vm[2]||1); root.innerHTML = html ? shell("documents", html, false, "Document") : screen404(); return; }
+  if(r==="signin") root.innerHTML=screenSignin();
+  else if(r==="welcome") root.innerHTML=screenWelcome();
+  else if(r==="no-access") root.innerHTML=screenNoAccess();
+  else if(views[r]){ root.innerHTML=shell(r, views[r][0](), views[r][1]); renderSource(r); bindComposer(); }
+  else root.innerHTML=screen404();
+}
+function renderSource(r){
+  const el=$("#source"); if(!el) return;
+  const id=state.openCite;
+  if(!id||r!=="ask"){el.hidden=true;return;}
+  const p=passages[id]; el.hidden=false;
+  el.innerHTML=`<div class="source-head"><div><h3>${esc(p.section)}</h3><div class="doc">${esc(p.doc)}</div></div>
+    <button class="close" id="closeSource" aria-label="Close source">${I.x}</button></div>
+    <div class="excerpt">${p.text}</div>
+    <div class="source-note">${I.shield}<span>This passage was retrieved for the answer and matched the citation on the server.</span></div>
+    <a class="btn btn-ghost btn-block open-page" href="#/documents/${p.docId}/${p.page}" data-open-cite="${id}">Open ${p.page>1||passages[id].docId!=="d3"?`page ${p.page}`:"document"} in ${esc(p.doc)}</a>`;
+}
+function bindComposer(){
+  const f=$("#composer"); if(!f) return;
+  const ta=$("#qInput");
+  f.addEventListener("submit",e=>{e.preventDefault(); const v=ta.value; ta.value=""; ask(v);});
+  ta.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault(); f.requestSubmit();} });
+  ta.addEventListener("input",()=>{ ta.style.height="auto"; ta.style.height=Math.min(ta.scrollHeight,160)+"px"; });
+}
+window.addEventListener("hashchange",()=>{state.openCite=null;state.menuOpen=false;render(); const v=$("#view"); if(v) v.focus(); window.scrollTo(0,0);});
+darkMQ.addEventListener("change",()=>{ if(state.theme==="system") render(); });
+
+/* ---------- Events ---------- */
+document.addEventListener("submit",e=>{
+  if(e.target.id==="wsForm"){
+    e.preventDefault(); const name=$("#wsName").value.trim();
+    if(!name){ $("#wsErr").hidden=false; $("#wsName").setAttribute("aria-invalid","true"); $("#wsName").focus(); return; }
+    state.workspace=name;
+    if(!$("#wsSample").checked){ state.docs=[]; state.answers=[]; }
+    location.hash="#/ask"; toast(`Created ${name}`);
+  }
+  if(e.target.id==="inviteForm"){
+    e.preventDefault(); const em=$("#invEmail").value.trim();
+    if(!/^\S+@\S+\.\S+$/.test(em)){ $("#invErr").hidden=false; $("#invEmail").setAttribute("aria-invalid","true"); $("#invEmail").focus(); return; }
+    state.invites.unshift({email:em,role:$("#invRole").value,sent:"just now"}); render(); toast(`Invite sent to ${em}`);
+  }
+});
+document.addEventListener("change",e=>{
+  if(e.target.id==="pageInput"){
+    const m=route().match(/^documents\/([^/]+)/), doc=state.docs.find(x=>x.id===m[1]);
+    const n=Math.min(Math.max(1,parseInt(e.target.value,10)||1),doc.pages);
+    location.hash=`#/documents/${m[1]}/${n}`; return;
+  }
+  const s=e.target.closest("[data-rolefor]"); if(!s) return;
+  const m=state.members.find(x=>x.id===s.dataset.rolefor); m.role=s.value; toast(`${m.name} is now ${roleName(m.role).toLowerCase()}`);
+});
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,a"); 
+  if(!e.target.closest(".acct") && state.menuOpen){ state.menuOpen=false; const m=$("#acctMenu"); if(m) m.hidden=true; const b=$("#acctBtn"); if(b) b.setAttribute("aria-expanded","false"); }
+  if(!e.target.closest(".proto")){ $("#protoMenu").hidden=true; $("#protoBtn").setAttribute("aria-expanded","false"); }
+  if(!t) return;
+  const d=t.dataset;
+  if(t.id==="protoBtn"){ const m=$("#protoMenu"); m.hidden=!m.hidden; t.setAttribute("aria-expanded",!m.hidden); return; }
+  if(d.go){ location.hash=d.go; $("#protoMenu").hidden=true; return; }
+  if(d.sim){
+    $("#protoMenu").hidden=true;
+    if(d.sim==="empty"){ state.docs=[]; state.answers=[]; state.evals=[]; location.hash="#/ask"; render(); toast("Showing an empty workspace"); }
+    if(d.sim==="aierror"){ state.aiError=true; location.hash="#/ask"; render(); }
+    if(d.sim==="clearerr"){ state.aiError=false; render(); }
+    if(d.sim==="reset"){ Object.assign(state,seed(),{aiError:false}); render(); toast("Demo data reset"); }
+    return;
+  }
+  if(d.signin!==undefined){ location.hash="#/welcome"; return; }
+  if(d.signout!==undefined){ state.menuOpen=false; location.hash="#/signin"; toast("Signed out"); return; }
+  if(d.copy!==undefined){ toast("Email copied"); return; }
+  if(t.id==="acctBtn"){ state.menuOpen=!state.menuOpen; $("#acctMenu").hidden=!state.menuOpen; t.setAttribute("aria-expanded",state.menuOpen); return; }
+  if(d.themeSet){ state.theme=d.themeSet; state.menuOpen=true; render(); return; }
+  if(d.themeToggle!==undefined){ state.theme = effectiveTheme()==="dark" ? "light" : "dark"; render(); toast(`${state.theme==="dark"?"Dark":"Light"} mode. Choose System in your account menu to follow your device.`); return; }
+  if(d.openCite){ state.hlCite=d.openCite; state.openCite=null; return; }
+  if(d.page){ const m=route().match(/^documents\/([^/]+)/); if(m) location.hash=`#/documents/${m[1]}/${d.page}`; return; }
+  if(d.zoom){ state.zoom = d.zoom==="fit" ? 100 : Math.min(160,Math.max(60,state.zoom+(d.zoom==="+"?20:-20))); render(); return; }
+  if(d.download!==undefined){ toast("Download started"); return; }
+  if(d.role){ state.role=d.role; render(); toast(`Previewing as ${roleName(d.role).toLowerCase()}`); return; }
+  if(d.cite){ state.openCite=state.openCite===d.cite?null:d.cite; renderSource("ask"); document.querySelectorAll(".cite").forEach(c=>c.setAttribute("aria-expanded",c.dataset.cite===state.openCite)); return; }
+  if(t.id==="closeSource"){ state.openCite=null; renderSource("ask"); document.querySelectorAll(".cite").forEach(c=>c.setAttribute("aria-expanded","false")); return; }
+  if(d.suggest){ ask(d.suggest); return; }
+  if(d.vote){
+    const a=state.answers.find(x=>x.id===d.id), v=d.vote;
+    if(a.vote===v){ a.vote=null; v==="up"?a.ups--:a.downs--; a.fbOpen=false; }
+    else{ if(a.vote==="up")a.ups--; if(a.vote==="down")a.downs--; a.vote=v; v==="up"?a.ups++:a.downs++; a.fbOpen=v==="down"; }
+    render(); return;
+  }
+  if(d.save){ const a=state.answers.find(x=>x.id===d.save); a.saved=true; state.evals.push({q:a.q,last:a.status,run:"Today",change:null}); render(); toast("Saved as eval case"); return; }
+  if(d.closefb){ state.answers.find(x=>x.id===d.closefb).fbOpen=false; render(); return; }
+  if(d.upload!==undefined){ uploadDialog(); return; }
+  if(d.pick){
+    const ok=d.pick==="ok";
+    $("#pickResult").innerHTML = ok
+      ? `<div class="file-chip"><div><div class="strong">Intern Program Guide.pdf</div><div class="sub">PDF, 4 pages, 1.2 MB</div></div><span class="pill p-ready">Ready to upload</span></div>`
+      : `<div class="file-chip" style="border-color:var(--danger)"><div><div class="strong">team-photo.png</div><div class="field-error">Images aren't supported. Upload a PDF, Markdown, or text file.</div></div></div>`;
+    $("#doUpload").disabled=!ok; return;
+  }
+  if(t.id==="doUpload"){
+    closeDialog();
+    const doc={id:"d"+Date.now(),name:"Intern Program Guide",meta:"PDF, 4 pages",by:"You",status:"indexing"};
+    state.docs.unshift(doc); render(); toast("Uploading Intern Program Guide");
+    setTimeout(()=>{ doc.status="ready"; render(); toast("Intern Program Guide is ready to search"); },2200); return;
+  }
+  if(d.retry){ const doc=state.docs.find(x=>x.id===d.retry); doc.status="indexing"; render(); setTimeout(()=>{doc.status="ready";render();},1800); return; }
+  if(d.del){
+    const doc=state.docs.find(x=>x.id===d.del);
+    confirmDialog({title:`Delete ${doc.name}?`,body:"It will be removed from search for everyone in the workspace. Past answers that cited it will keep their citations, marked as from a deleted document.",action:"Delete document",
+      onConfirm:()=>{ state.docs=state.docs.filter(x=>x.id!==doc.id); render(); toast(`Deleted ${doc.name}`); }});
+    return;
+  }
+  if(d.remove){
+    const m=state.members.find(x=>x.id===d.remove);
+    confirmDialog({title:`Remove ${m.name}?`,body:"They'll lose access to this workspace right away. Their past questions and feedback stay.",action:"Remove member",
+      onConfirm:()=>{ state.members=state.members.filter(x=>x.id!==m.id); render(); toast(`Removed ${m.name}`); }});
+    return;
+  }
+  if(d.revoke!==undefined){ const v=state.invites.splice(+d.revoke,1)[0]; render(); toast(`Revoked invite for ${v.email}`); return; }
+  if(d.dlg==="cancel"){ closeDialog(); return; }
+  if(d.dlg==="confirm"){ closeDialog(); if(confirmDialog._cb) confirmDialog._cb(); return; }
+  if(t.id==="runEvals"){
+    t.disabled=true; t.textContent="Re-running…";
+    setTimeout(()=>{
+      const intern=state.docs.some(x=>x.name==="Intern Program Guide"&&x.status==="ready");
+      state.evals.forEach(e=>{ const before=e.last; if(/intern/i.test(e.q)&&intern) e.last="verified"; e.change=e.last!==before; e.run="Just now"; });
+      render(); toast("Evals re-run");
+    },1200);
+  }
+});
+document.addEventListener("keydown",e=>{
+  const vm=route().match(/^documents\/([^/]+)\/(\d+)$/);
+  if(vm && (e.key==="ArrowLeft"||e.key==="ArrowRight") && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){
+    const doc=state.docs.find(x=>x.id===vm[1]); const n=+vm[2]+(e.key==="ArrowRight"?1:-1);
+    if(doc && n>=1 && n<=doc.pages) location.hash=`#/documents/${vm[1]}/${n}`; return;
+  }
+  if(e.key==="Enter" && e.target.id==="pageInput"){ e.target.dispatchEvent(new Event("change",{bubbles:true})); return; }
+  if(e.key!=="Escape") return;
+  if(state.openCite){ state.openCite=null; renderSource(route()); }
+  if(state.menuOpen){ state.menuOpen=false; const m=$("#acctMenu"); if(m) m.hidden=true; $("#acctBtn")?.focus(); }
+  $("#protoMenu").hidden=true;
+});
+render();
+</script>
+</body>
+</html>
