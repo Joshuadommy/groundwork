@@ -94,4 +94,4 @@ F. E2E test, README, sample documents loaded on workspace setup.
 ## Verification log (fill in as you build — this feeds the writeup)
 | Step | What the agent did | What I checked / changed myself |
 |---|---|---|
-| | | |
+| A. Skeleton | Roles (admin/editor/member/viewer), 6 collections with server-only writes except feedback, `requireRole` reading the raw `users` role (found in SDK source that `resolveAppRole` reports `editor` as `viewer`), AuthGate above the data layer (a RecordProvider without `allowAnonymous` renders nothing signed out), waiting-for-access screen, token required on all WebSocket routes, unused Yjs/canvas/presence routes removed, job room admin-only, agent tools team-only. Checks: tsc, eslint, build, Playwright 8 passed / 1 skipped (no test accounts yet). Deployed release `rel_01M7YFJ7KQXH00NQ86393BJ8NM`; live `/ws/any-room` without a token returns 401. | |
