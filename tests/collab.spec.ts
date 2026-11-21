@@ -32,9 +32,12 @@ test.skip(
 )
 
 test('new sign-ins wait for access and receive no records', async ({ users }) => {
-  const [a, b] = await users(2)
+  // Named, not users(2): the pool's first accounts include GW Owner, which is
+  // the app owner in local runs (OWNER_USER_ID in .dev.vars) and so is admin.
+  const [a, b] = await users(['GW Editor', 'GW Viewer'])
 
-  // Test accounts are not the app owner, so they start as `viewer` (no access).
+  // These accounts are not the app owner and have not been approved, so they
+  // start as `viewer` (no access).
   // /ask is gated; each browser must show the waiting screen for ITS account.
   await Promise.all([a.page.goto('/ask'), b.page.goto('/ask')])
 
