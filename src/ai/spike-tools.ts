@@ -30,7 +30,10 @@ function describeError(error: unknown) {
   if (error instanceof KnowledgeError) {
     return { code: error.code, status: error.status, message: error.message }
   }
-  return { message: error instanceof Error ? error.message : String(error) }
+  if (error instanceof Error) {
+    return { name: error.name, message: error.message, stack: error.stack?.split('\n').slice(0, 4) }
+  }
+  return { message: String(error) }
 }
 
 export function buildSpikeTools(context: AgentToolContext<Env>): ToolSet {
@@ -42,12 +45,21 @@ export function buildSpikeTools(context: AgentToolContext<Env>): ToolSet {
         documentId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
       }),
       execute: async ({ fileKey, documentId }) => {
-        await ownerOnly(context)
+        try {
+          await ownerOnly(context)
+        } catch (error) {
+          return { stage: 'role', error: describeError(error) }
+        }
         const timings: Record<string, number> = {}
         let t = Date.now()
-        const files = appFiles(context.env, { scope: 'self', userId: context.env.OWNER_USER_ID })
-        const res = await files.download(fileKey)
-        const bytes = await res.arrayBuffer()
+        let bytes: ArrayBuffer
+        try {
+          const files = appFiles(context.env, { scope: 'self', userId: context.env.OWNER_USER_ID })
+          const res = await files.download(fileKey)
+          bytes = await res.arrayBuffer()
+        } catch (error) {
+          return { stage: 'download', error: describeError(error) }
+        }
         timings.downloadMs = Date.now() - t
 
         t = Date.now()
