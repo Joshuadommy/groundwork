@@ -13,7 +13,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { AuthOverlay, useAuthProfileReady, signOut } from 'deepspace'
 import { ChevronDown, LogOut, Menu, X } from 'lucide-react'
 import { APP_NAME } from '../constants'
-import type { Role } from '../constants'
+import { canAsk, toAppRole } from '../roles'
 import { nav } from '../nav'
 import { cn } from '../lib/utils'
 import {
@@ -35,7 +35,7 @@ export default function Navigation() {
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   const profileReady = !isSignedIn || (!userLoading && !!user)
-  const userRole = (user?.role ?? 'anonymous') as Role | 'anonymous'
+  const userRole = user ? toAppRole(user.role) : null
 
   // Close the mobile menu when navigating
   useEffect(() => {
@@ -44,10 +44,12 @@ export default function Navigation() {
 
   const visibleNav = nav.filter((item) => {
     if (item.devOnly && !import.meta.env.DEV) return false
+    // Pages are only for approved teammates; people waiting for access and
+    // signed-out visitors see no section links.
+    if (!profileReady || !canAsk(userRole)) return false
     if (!item.roles) return true
-    if (!profileReady) return false
     if (userRole === 'admin') return true
-    return item.roles.includes(userRole as Role)
+    return item.roles.includes(userRole!)
   })
 
   const navLink = (item: (typeof nav)[number]) => {
@@ -71,7 +73,7 @@ export default function Navigation() {
     <>
       <nav data-testid="app-navigation" className="border-b border-border bg-background">
         <div className="mx-auto flex h-12 max-w-7xl items-center gap-4 px-4">
-          <Link to="/home" className="text-sm font-semibold text-foreground">
+          <Link to="/ask" className="text-sm font-semibold text-foreground">
             {APP_NAME}
           </Link>
 

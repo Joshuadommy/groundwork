@@ -1,24 +1,25 @@
 /**
  * Navigation Config
  *
- * Add one entry per nav item. Routes are handled by generouted
- * (file-based routing in src/pages/), this just controls what
- * appears in the navigation bar.
+ * One entry per nav item. Routes are handled by generouted (file-based
+ * routing in src/pages/); this only controls what appears in the navigation.
+ * Every page is already behind MembersOnly, so items need no role unless they
+ * are narrower than "approved teammate". The Team page is visible to everyone
+ * approved (read-only for non-owners).
  */
 
-import type { Role } from './constants'
+import type { AppRole } from './roles'
 
 export interface NavItem {
   path: string
   label: string
-  roles?: Role[]
+  roles?: AppRole[]
   devOnly?: boolean
 }
 
 export const nav: NavItem[] = [
-  { path: '/home', label: 'Home' },
-  { path: '/settings', label: 'Settings' },
-  // The /api-status debug page still exists — add
-  // `{ path: '/api-status', label: 'API Status', devOnly: true }` to surface it.
-  // ── Features add nav items below this line ──
+  { path: '/ask', label: 'Ask' },
+  { path: '/documents', label: 'Documents' },
+  { path: '/evals', label: 'Evals' },
+  { path: '/team', label: 'Team' },
 ]

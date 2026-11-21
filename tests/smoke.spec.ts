@@ -5,8 +5,8 @@ import { captureConsoleErrors } from './helpers/errors'
  * Smoke tests covering both page kinds this template ships:
  *   - '/'      → the static landing (top level of src/pages/): no providers,
  *                so no auth fetch and no records WebSocket on load.
- *   - '/home'  → a dynamic page (under src/pages/(app)/): the providers mount,
- *                the nav shell renders, and the records WebSocket connects.
+ *   - '/ask'   → a dynamic, sign-in-gated page (under src/pages/(app)/): signed
+ *                out, it shows the sign-in screen and mounts no data layer.
  *
  * The "static contract" test is the guardrail for the per-page opt-out: if
  * someone moves the providers back up into _app.tsx, it fails.
@@ -52,15 +52,14 @@ test.describe('Smoke tests', () => {
     expect(offenders).toEqual([])
   })
 
-  test('dynamic app boundary mounts on /home', async ({ page }) => {
-    await page.goto('/home')
-    await expect(page.getByTestId('app-navigation')).toBeVisible({ timeout: 15000 })
-  })
-
-  test('sign-in button visible when logged out', async ({ page }) => {
-    await page.goto('/home')
-    await expect(page.getByTestId('nav-sign-in-button')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByTestId('nav-user-name')).toHaveCount(0)
+  test('signed-out visitors get the sign-in screen, not the app', async ({ page }) => {
+    const errors = captureConsoleErrors(page)
+    await page.goto('/ask')
+    await expect(page.getByTestId('sign-in-screen')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('sign-in-button')).toBeVisible()
+    await expect(page.getByTestId('app-navigation')).toHaveCount(0)
+    await expect(page.getByTestId('page-ask')).toHaveCount(0)
+    expect(errors).toEqual([])
   })
 
   test('unknown route shows 404', async ({ page }) => {

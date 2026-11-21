@@ -1,53 +1,24 @@
 /**
- * Gated routes. Any file under src/pages/(app)/(protected)/ requires sign-in.
- * The `(protected)` folder is a Generouted route group — parentheses mean
- * it doesn't appear in the URL. For a dynamic page that does NOT require
- * sign-in, put it directly under src/pages/(app)/; for a static page, put it
- * at the top level of src/pages/.
+ * Gated routes. Every Groundwork page lives under src/pages/(app)/(protected)/.
  *
- * Children may call data hooks like `useUser()` safely because the parent
- * (app)/_layout.tsx mounts <RecordProvider> above this layout.
+ * Sign-in is already required one level up: (app)/_layout.tsx wraps the data
+ * layer in AuthGate, because a RecordProvider without `allowAnonymous`
+ * renders nothing for signed-out visitors. This layout adds the second gate:
+ * signed-in users without a role (`viewer`) see "waiting for access" until an
+ * owner approves them on the Team page.
  *
- * The `fallback` keeps signed-out visitors inside the app's own chrome
- * (without it, AuthGate shows the SDK's full-screen, non-dismissible
- * overlay). The sign-in overlay opens on demand and can be dismissed.
+ * Both gates are for the person, not for security. The server is the
+ * boundary: the records WebSocket requires a token, collection rules send a
+ * viewer nothing, and actions/routes call requireRole.
  */
 
-import { useState } from 'react'
-import { Link, Outlet } from 'react-router-dom'
-import { AuthGate, AuthOverlay } from 'deepspace'
-import { Button } from '@/components/ui'
+import { Outlet } from 'react-router-dom'
+import MembersOnly from '../../../components/MembersOnly'
 
 export default function ProtectedLayout() {
   return (
-    <AuthGate fallback={<SignedOutPanel />}>
+    <MembersOnly>
       <Outlet />
-    </AuthGate>
-  )
-}
-
-function SignedOutPanel() {
-  const [showAuthModal, setShowAuthModal] = useState(false)
-
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center px-6 py-20">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8 text-center">
-        <h1 className="text-lg font-semibold text-foreground">Sign in to continue</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This page is only available to signed-in users.
-        </p>
-        <Button className="mt-6 w-full" onClick={() => setShowAuthModal(true)}>
-          Sign in
-        </Button>
-        <Link
-          to="/"
-          className="mt-4 inline-block text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-        >
-          Back to home
-        </Link>
-      </div>
-
-      {showAuthModal && <AuthOverlay onClose={() => setShowAuthModal(false)} />}
-    </div>
+    </MembersOnly>
   )
 }

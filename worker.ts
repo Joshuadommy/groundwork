@@ -33,6 +33,8 @@ import {
   resolveAuth,
 } from './src/server/http-routes.js'
 import { registerRealtimeRoutes } from './src/server/realtime-routes.js'
+import { requireRole } from './src/server/roles.js'
+import { TEAM_ROLES } from './src/roles.js'
 
 // Dynamic deploy reads this manifest to create the app's DO bindings.
 export const __DO_MANIFEST__ = [
@@ -69,10 +71,14 @@ export class AppCronRoom extends CronRoom<Env> {
 export class AppJobRoom extends JobRoom<Env> {
   constructor(state: DurableObjectState, env: Env) {
     super(state, env, {
+      // Jobs (document indexing) are queued by the worker with `enqueueJob`,
+      // after the upload route's own role check; that path does not pass
+      // through this socket gate. Over the socket, only owners may enqueue,
+      // cancel or retry. resolveAppRole reports admin correctly (it is only
+      // custom roles like `editor` that it collapses to `viewer`).
       authorizeWrite: async (user) => {
         if (user.userId.startsWith('anon-')) return false
-        const role = await resolveAppRole(env, user.userId)
-        return role === 'member' || role === 'admin'
+        return (await resolveAppRole(env, user.userId)) === 'admin'
       },
     })
   }
@@ -142,6 +148,9 @@ registerActionRoutes(app, resolveAuth)
 registerAgent(app, {
   tools: buildTools,
   inApp: schemas.some((schema) => schema.name === AI_CHATS_SCHEMA.name),
+  // SDK membership means "has a users row", which includes people still
+  // waiting for access. Only approved teammates may use the tools.
+  authorize: async ({ userId, env }) => (await requireRole(env, userId, TEAM_ROLES)).ok,
 })
 registerPlatformProxyRoutes(app)
 registerStaticRoutes(app)

@@ -17,7 +17,8 @@
 
 import { Suspense, type ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
-import { DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
+import { AuthGate, DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
+import SignInScreen from '../../components/SignInScreen'
 import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
 import Navigation from '../../components/Navigation'
 import { useToast } from '@/components/ui'
@@ -30,16 +31,20 @@ export default function AppLayout() {
       {/* The prerendered landing owns the document <title> and React drops it
           when <Seo> unmounts, so every route without <Seo> sets its own. */}
       <title>{APP_NAME}</title>
-      <AuthBoot>
-        <div className="flex h-screen flex-col bg-background overflow-hidden">
-          <Navigation />
-          <main className="flex-1 overflow-y-auto min-h-0">
-            <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
-              <Outlet />
-            </Suspense>
-          </main>
-        </div>
-      </AuthBoot>
+      {/* Groundwork is private: signed-out visitors get the sign-in screen and
+          never mount the data layer (whose WebSocket requires a token). */}
+      <AuthGate fallback={<SignInScreen />}>
+        <AuthBoot>
+          <div className="flex h-screen flex-col bg-background overflow-hidden">
+            <Navigation />
+            <main className="flex-1 overflow-y-auto min-h-0">
+              <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
+                <Outlet />
+              </Suspense>
+            </main>
+          </div>
+        </AuthBoot>
+      </AuthGate>
     </DeepSpaceAuthProvider>
   )
 }
@@ -66,8 +71,9 @@ function AuthBoot({ children }: { children: ReactNode }) {
   }
 
   return (
+    // No `allowAnonymous`: Groundwork is private, and the records WebSocket
+    // refuses connections without a token (src/server/realtime-routes.ts).
     <RecordProvider
-      allowAnonymous
       onWriteError={(e) =>
         e.kind === 'permission' ? warning(e.title, e.detail) : error(e.title, e.detail)
       }
