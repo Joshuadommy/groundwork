@@ -8,11 +8,12 @@
 import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { askQuestion } from './ask'
-import { retryDocumentIndexing } from './documents'
+import { deleteDocument, retryDocumentIndexing } from './documents'
 import { setupWorkspace } from './setup'
 
 export const actions: Record<string, ActionHandler<Env>> = {
   askQuestion,
+  deleteDocument,
   retryDocumentIndexing,
   setupWorkspace,
 }

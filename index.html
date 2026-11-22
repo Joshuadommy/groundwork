@@ -1,26 +1,30 @@
 <!DOCTYPE html>
 <!--
-  Active theme is set on the <html> element below.
-  To switch themes, change `data-theme` to any id defined in src/themes.ts.
-  Color values per theme live in src/themes.css.
+  Theme: no data-theme attribute = follow the system. A manual light/dark
+  choice is stored in localStorage ("gw-theme") and applied by the inline
+  script below before first paint, so there is no flash. Tokens live in
+  src/themes.css; src/theme.ts manages the choice at runtime.
 -->
-<html lang="en" data-theme="slate">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.ico" />
     <title>groundwork</title>
-    <!--
-      First-paint background, keyed to the data-theme attribute above.
-      Without this the browser paints white until the CSS bundle arrives —
-      a hard flash on the dark themes. Each value mirrors --color-background
-      in src/styles.css (slate) / src/themes.css; keep them in sync when
-      adding or editing themes.
-    -->
+    <script>
+      try {
+        var t = localStorage.getItem('gw-theme')
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t)
+      } catch (e) {}
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- First-paint background, mirroring --bg in src/themes.css. -->
     <style>
-      html { background-color: #0a0a0a; color-scheme: dark; }
-      html[data-theme="paper"] { background-color: #ffffff; color-scheme: light; }
-      /* Add one line per theme you create, mirroring its --color-background. */
+      html { background-color: #ffffff; color-scheme: light; }
+      @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) { background-color: #15191f; color-scheme: dark; } }
+      html[data-theme="dark"] { background-color: #15191f; color-scheme: dark; }
     </style>
   </head>
   <body>

@@ -17,33 +17,28 @@
  */
 
 import { Link } from 'react-router-dom'
+import { Logo } from '../components/icons'
 import { Seo } from '../components/Seo'
-import { APP_NAME } from '../constants'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { seo } from '../seo'
 
 export default function Landing() {
   return (
     <>
       <Seo {...seo} path="/" />
-      <div
-        data-testid="static-landing"
-        className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
-      >
-        <p className="mb-3 text-sm uppercase tracking-widest text-muted-foreground">{APP_NAME}</p>
-        <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          Answers your team can trust
-        </h1>
-        <p className="mb-8 max-w-md text-muted-foreground">
-          Ask questions about your team&apos;s documents. Every answer cites the exact
-          passage it came from, and citations that don&apos;t match a retrieved passage
-          are removed before you see them.
-        </p>
-        <Link
-          to="/ask"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Open Groundwork
-        </Link>
+      <ThemeToggle floating />
+      <div data-testid="static-landing" className="single">
+        <main className="panel">
+          <Logo />
+          <h1>Answers your team can trust</h1>
+          <p>
+            Ask questions about your team&apos;s documents. Every answer cites the exact passage it came from, and
+            citations that don&apos;t match a retrieved passage are removed before you see them.
+          </p>
+          <Link to="/ask" className="btn btn-primary">
+            Open Groundwork
+          </Link>
+        </main>
       </div>
     </>
   )

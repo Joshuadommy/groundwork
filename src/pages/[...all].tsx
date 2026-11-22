@@ -1,19 +1,28 @@
-import { Link } from 'react-router-dom'
+import { Logo } from '../components/icons'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { APP_NAME } from '../constants'
 
+/**
+ * 404 — a static page outside the data layer, so it renders for anyone.
+ * The theme toggle needs no data layer.
+ */
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
+    <div className="single">
+      <ThemeToggle floating />
       <title>{`Not found · ${APP_NAME}`}</title>
       <meta name="robots" content="noindex" />
-      <h1 className="text-4xl font-bold text-foreground mb-2">404</h1>
-      <p className="text-muted-foreground mb-6">Page not found</p>
-      <Link
-        to="/ask"
-        className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-      >
-        Go to Ask
-      </Link>
+      <main className="panel" data-testid="not-found">
+        <Logo href="/ask" />
+        <p className="big-num" style={{ marginTop: 28 }}>
+          404
+        </p>
+        <h1 style={{ marginTop: 4 }}>This page doesn&apos;t exist</h1>
+        <p>The link may be old, or the page was moved.</p>
+        <a className="btn btn-primary" href="/ask">
+          Go to Ask
+        </a>
+      </main>
     </div>
   )
 }

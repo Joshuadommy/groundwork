@@ -23,7 +23,7 @@ import {
 } from '../lib/document-files'
 import type { DocumentData } from '../schemas/documents-schema'
 import { EDITOR_ROLES, TEAM_ROLES } from '../roles'
-import { createActionTools } from './action-routes'
+import { createActionTools } from './action-tools'
 import { ingestDocument } from './documents'
 import { resolveAuth } from './http-routes'
 import { requireRole } from './roles'

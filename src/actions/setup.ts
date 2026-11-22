@@ -36,7 +36,8 @@ export async function runSetupWorkspace(
   const failures: string[] = []
   if (options.loadSamples !== false) {
     for (const sample of SAMPLE_DOCUMENTS) {
-      const res = await env.ASSETS.fetch(new Request(new URL(sample.path, 'https://assets.local')))
+      // Any host works in production; Vite's dev server only allows localhost.
+      const res = await env.ASSETS.fetch(new Request(new URL(sample.path, 'http://localhost')))
       if (!res.ok) {
         failures.push(`${sample.title}: sample file missing (${res.status})`)
         continue

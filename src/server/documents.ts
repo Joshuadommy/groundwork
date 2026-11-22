@@ -18,7 +18,7 @@ import type { Env } from '../../worker'
 import { newDocumentId, safeFileName } from '../lib/document-files'
 import { documentFolder, pageFileName } from '../lib/passage-key'
 import type { DocumentData, DocumentKind } from '../schemas/documents-schema'
-import { createActionTools } from './action-routes'
+import { createActionTools } from './action-tools'
 import { extractPdfPages } from './pdf-text'
 
 export const INDEX_JOB = 'index-document'
@@ -80,6 +80,29 @@ export async function ingestDocument(
   })
   console.info(`[documents] queued ${documentId} kind=${input.kind} bytes=${input.bytes.byteLength}`)
   return { success: true, documentId }
+}
+
+/**
+ * Delete a document everywhere: its pages from knowledge (by saved item id),
+ * the original file, then the record. Past answers keep their citation
+ * snapshots; the UI marks them as from a deleted document. If the indexing
+ * job is still running it notices the record is gone and removes what it added.
+ */
+export async function deleteDocument(
+  env: Env,
+  tools: ActionTools,
+  documentId: string,
+  requestedBy: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const got = await tools.get<DocumentData>('documents', documentId)
+  if (!got.success) return { success: false, error: 'Document not found.' }
+  const doc = got.data.record.data
+  await removeKnowledgeItems(env, doc.knowledgeItemIds ?? [])
+  if (doc.fileKey) await ownerFiles(env).delete(doc.fileKey).catch(() => undefined)
+  const removed = await tools.remove('documents', documentId)
+  if (!removed.success) return { success: false, error: removed.error ?? 'Could not delete the document.' }
+  console.info(`[documents] deleted ${documentId} by ${requestedBy} items=${doc.knowledgeItemIds?.length ?? 0}`)
+  return { success: true }
 }
 
 /**
@@ -208,7 +231,12 @@ export async function indexDocument(env: Env, documentId: string, ctx: JobContex
     itemIds = await addPages(kb, documentId, withText, (done) =>
       ctx.progress(0.1 + 0.6 * (done / withText.length), `Indexed ${done} of ${withText.length} pages`),
     )
-    await tools.update('documents', documentId, { pageCount: pages.length, knowledgeItemIds: itemIds })
+    const saved = await tools.update('documents', documentId, { pageCount: pages.length, knowledgeItemIds: itemIds })
+    if (!saved.success) {
+      // Deleted while we were indexing: take back what we added.
+      await removeKnowledgeItems(env, itemIds)
+      return { documentId, skipped: 'deleted during indexing' }
+    }
 
     ctx.progress(0.75, 'Waiting for search to be ready')
     await waitUntilSearchable(kb, documentId, itemIds, ctx.signal)

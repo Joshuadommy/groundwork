@@ -1,5 +1,12 @@
-import PagePlaceholder from '../../../components/PagePlaceholder'
-
+/** Placeholder until Phase E. */
 export default function EvalsPage() {
-  return <PagePlaceholder title="Evals" testId="page-evals" />
+  return (
+    <main className="view" id="view" data-testid="page-evals">
+      <h2 className="page">Evals</h2>
+      <div className="empty">
+        <h3>Coming next</h3>
+        <p>This page is being built.</p>
+      </div>
+    </main>
+  )
 }

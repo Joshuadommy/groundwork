@@ -103,8 +103,9 @@ export function registerAuthAndIntegrationRoutes(app: Hono<AppContext>): void {
     const appOrigin = new URL(c.req.url).origin
     // Land the signed-in user in the app, not on the static landing. `/` is a
     // static page (no auth/realtime providers), so redirecting there after auth
-    // would strand the user; `/home` is the dynamic app boundary.
-    const appHome = `${appOrigin}/home`
+    // would strand the user. Groundwork's app home is /ask (the scaffold's
+    // /home page was removed in Phase A, which made sign-in land on the 404).
+    const appHome = `${appOrigin}/ask`
 
     if (!code) return c.redirect(appHome)
 

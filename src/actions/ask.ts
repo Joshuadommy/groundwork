@@ -71,12 +71,13 @@ export async function runAsk(
       answerText: result.answerText,
       citations: result.citations,
       removedCitations: result.removedCitations,
+      ...(result.coverage ? { coverage: result.coverage } : {}),
     }
     const saved = await tools.update('answers', answerId, update)
     if (!saved.success) return saved
     console.info(
       `[ask] answer=${answerId} status=${result.status} passages=${result.passages.length} ` +
-        `cited=${result.citations.length} removed=${result.removedCitations.length} generated=${result.generated}`,
+        `cited=${result.citations.length} removed=${result.removedCitations.length} generated=${result.generated} coverage=${result.coverage ?? "-"}`,
     )
     return { success: true, data: { answerId, status: result.status } }
   } catch (error) {

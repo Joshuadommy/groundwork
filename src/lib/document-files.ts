@@ -33,7 +33,9 @@ export function looksLikePdf(bytes: Uint8Array): boolean {
 /** A readable default title: the filename without its extension. */
 export function titleFromFilename(filename: string): string {
   const base = filename.trim().replace(/^.*[\\/]/, '').replace(/\.[A-Za-z0-9]+$/, '')
-  const title = base.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim()
+  // A name without spaces uses - or _ as separators (remote-work-policy.pdf).
+  const spaced = /\s/.test(base) ? base.replace(/_+/g, ' ') : base.replace(/[-_]+/g, ' ')
+  const title = spaced.replace(/\s+/g, ' ').trim()
   return (title || 'Untitled document').slice(0, TITLE_MAX_CHARS)
 }
 

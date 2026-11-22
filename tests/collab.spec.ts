@@ -44,16 +44,11 @@ test('new sign-ins wait for access and receive no records', async ({ users }) =>
 
   for (const user of [a, b]) {
     await expect(user.page.getByTestId('waiting-for-access')).toBeVisible({ timeout: 15_000 })
-    await expect(user.page.getByTestId('waiting-for-access')).toContainText(user.email)
-    // No section links for someone without access.
-    await expect(user.page.getByRole('link', { name: 'Documents' })).toHaveCount(0)
-    await expect(user.page.getByTestId('page-ask')).toHaveCount(0)
-
     // Email, not name: the email is the credential the context signed in with.
-    await user.page.getByRole('button', { name: 'Account menu' }).click()
-    await expect(user.page.getByTestId('nav-user-email')).toHaveText(user.email, {
-      timeout: 15_000,
-    })
+    await expect(user.page.getByTestId('waiting-email')).toHaveText(user.email)
+    // No app shell or section links for someone without access.
+    await expect(user.page.getByTestId('app-navigation')).toHaveCount(0)
+    await expect(user.page.getByTestId('page-ask')).toHaveCount(0)
   }
 })
 
@@ -118,5 +113,25 @@ test.describe('askQuestion action', () => {
     expect(status).toBe(200)
     expect(body).toMatchObject({ success: true, data: { status: 'abstained' } })
     expect(typeof body!.data.answerId).toBe('string')
+  })
+})
+
+test.describe('owner UI', () => {
+  test('the upload dialog refuses unsupported files before sending them', async ({ users }) => {
+    test.skip(
+      !localOwnerIs('GW Owner'),
+      'Needs OWNER_USER_ID in .dev.vars set to GW Owner; run with npx playwright test -c tests/playwright.config.ts',
+    )
+    const [owner] = await users(['GW Owner'])
+    await owner.page.goto('/documents')
+    await expect(owner.page.getByTestId('page-documents')).toBeVisible({ timeout: 15_000 })
+    await expect(owner.page.getByTestId('app-navigation')).toBeVisible()
+    await owner.page.getByTestId('open-upload').click()
+    await owner.page.getByTestId('upload-input').setInputFiles({ name: 'team-photo.png', mimeType: 'image/png', buffer: Buffer.from('x') })
+    await expect(owner.page.getByTestId('upload-file-chip')).toContainText("Images aren't supported")
+    await expect(owner.page.getByTestId('upload-submit')).toBeDisabled()
+    await owner.page.getByTestId('upload-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('') })
+    await expect(owner.page.getByTestId('upload-file-chip')).toContainText('This file is empty.')
+    await expect(owner.page.getByTestId('upload-submit')).toBeDisabled()
   })
 })

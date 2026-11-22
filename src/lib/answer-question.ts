@@ -10,9 +10,22 @@
  */
 
 import { parsePassageKey } from './passage-key'
+import { attachQuotes, type ModelQuote } from './quotes'
+import type { AnswerCoverage } from '../schemas/answers-schema'
 import { verifyCitations, type LabeledPassage, type ModelAnswer, type VerifiedAnswer } from './verify-citations'
 
 export const MAX_PASSAGES = 8
+
+/**
+ * The generator's output: what verifyCitations checks, plus the model's
+ * coverage judgment. Coverage is not verified (it cannot be, deterministically)
+ * and is shown as a note, never as part of the verification status.
+ */
+export interface GeneratedAnswer extends ModelAnswer {
+  coverage?: AnswerCoverage
+  /** One short verbatim quote per cited label; kept only if found in the passage. */
+  quotes?: ModelQuote[]
+}
 
 /** A raw search hit, shaped like a managed-knowledge chunk. */
 export interface RetrievedChunk {
@@ -32,7 +45,7 @@ export interface AnswerDeps {
   retrieve: (question: string) => Promise<RetrievedChunk[]>
   /** Documents that are currently `ready`, by record id. */
   readyDocuments: (ids: string[]) => Promise<Map<string, ReadyDocument>>
-  generate: (question: string, passages: LabeledPassage[]) => Promise<ModelAnswer>
+  generate: (question: string, passages: LabeledPassage[]) => Promise<GeneratedAnswer>
 }
 
 export interface AnswerResult extends VerifiedAnswer {
@@ -40,6 +53,8 @@ export interface AnswerResult extends VerifiedAnswer {
   passages: LabeledPassage[]
   /** Whether the model was called. */
   generated: boolean
+  /** Null when the answer abstained; otherwise the model's judgment (default full). */
+  coverage: AnswerCoverage | null
 }
 
 /** Turn search hits into labelled passages from ready documents. */
@@ -79,8 +94,20 @@ export async function answerQuestion(question: string, deps: AnswerDeps): Promis
   const chunks = await deps.retrieve(question)
   const passages = await labelPassages(chunks, deps.readyDocuments)
   if (passages.length === 0) {
-    return { ...verifyCitations({ answer: '', citations: [], answerable: false }, []), passages, generated: false }
+    return {
+      ...verifyCitations({ answer: '', citations: [], answerable: false }, []),
+      passages,
+      generated: false,
+      coverage: null,
+    }
   }
   const model = await deps.generate(question, passages)
-  return { ...verifyCitations(model, passages), passages, generated: true }
+  const verified = verifyCitations(model, passages)
+  return {
+    ...verified,
+    citations: attachQuotes(verified.citations, passages, model.quotes),
+    passages,
+    generated: true,
+    coverage: verified.status === 'abstained' ? null : model.coverage === 'partial' ? 'partial' : 'full',
+  }
 }

@@ -34,6 +34,8 @@ describe('looksLikePdf', () => {
 describe('titleFromFilename and safeFileName', () => {
   it('drops the extension and any path', () => {
     expect(titleFromFilename('C:\\docs\\Remote_Work_Policy.pdf')).toBe('Remote Work Policy')
+    expect(titleFromFilename('remote-work-policy.pdf')).toBe('remote work policy')
+    expect(titleFromFilename('Q3 report - draft.pdf')).toBe('Q3 report - draft')
     expect(titleFromFilename('.pdf')).toBe('Untitled document')
   })
 

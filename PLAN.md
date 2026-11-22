@@ -63,13 +63,15 @@ AI and knowledge usage are billed to the app owner (server calls omit the caller
 Record ids and `createdAt` / `createdBy` come from the record envelope.
 - `workspace`: slot (unique, always `main`), name, setupBy
 - `documents`: title, kind (pdf | md | txt), fileKey, sizeBytes, pageCount, uploadedBy, status (indexing | ready | failed), error, knowledgeItemIds
-- `answers`: question, answerText, citations [{label, documentId, docTitle, page, excerpt, chunkId}], removedCitations [label], status (pending | verified | partial | abstained | error), askedBy, model
+- `answers`: question, answerText, citations [{label, documentId, docTitle, page, excerpt, chunkId}], removedCitations [label], status (pending | verified | partial | abstained | error), coverage (full | partial; absent when abstained), askedBy, model
 - `feedback`: answerId, userId, rating (up | down), note — one per user per answer
 - `evalCases`: question, sourceAnswerId (unique), createdBy
 - `evalRuns`: evalCaseId, batchId, answerText, citations, status, changedFromPrevious (bool), runAt. "Changed" means the status or the set of cited (document, page) pairs differs from the previous run; wording alone does not count, because model wording varies.
 
 ## Key design decision (the main tradeoff)
-Citation verification is **deterministic code, not another model call**. The model is asked to cite passage IDs; the server checks each ID against what retrieval actually returned. Tradeoff: it guarantees a citation points to a retrieved passage, but it does not prove the passage *supports* the sentence. A semantic support check (an extra model call per citation) was left out for latency and cost — listed under "next steps."
+Citation verification is **deterministic code, not another model call**. The model is asked to cite passage IDs; the server checks each ID against what retrieval actually returned. Tradeoff: it guarantees a citation points to a retrieved passage, but it does not prove the passage *supports* the sentence. A semantic support check (an extra model call per citation) was left out for latency and cost — listed under "Next steps."
+
+**Coverage is reported separately from verification.** The status says only whether the citations point at retrieved passages, so in Phase D1 an answer that covered half the question was still "Verified". The model's structured output now includes `coverage` ("full" | "partial"), stored on the answer and shown under the badge when partial: "Answers part of your question; your documents don't cover the rest." It is the model's own judgment, not verified by code, so it is a note and never changes the status. `verifyCitations` is unchanged.
 
 ## Scope cut line (if time runs short)
 Must ship: roles and access approvals, upload + per-page index, ask with verified citations, abstain behavior, live feedback.
@@ -83,6 +85,11 @@ C. Ask pipeline: retrieval, S1..Sn labels, generation, `verifyCitations`, abstai
 D. UI matching `design/prototype.html`: Ask, Documents with upload, document viewer. **D1 done: upload route, indexing job, sample documents, verified live without UI.** D2: the screens.
 E. Feedback, Evals, Team access approvals.
 F. E2E test, README, sample documents loaded on workspace setup.
+
+## Next steps (not built)
+- **Uncited sentences.** "Verified" means every citation the model gave is valid, not that every sentence carries one. A sentence with no `[Sn]` (including one left uncited after an invalid citation is stripped from a partial answer) is shown without a marker. Next: split the answer into sentences and flag or drop factual sentences with no valid citation.
+- **Semantic support check:** one extra model call per citation to confirm the passage supports the sentence (cost and latency tradeoff; see Key design decision).
+- **Coverage check:** coverage is the model's self-report; an evaluator model or eval cases could audit it.
 
 ## Testing
 - Unit tests: `verifyCitations` keeps valid labels, strips invented labels, abstains when none are valid; `answerQuestion` with a fake retriever and generator covers verified, partial, and abstain (nothing retrieved).

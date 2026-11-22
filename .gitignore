@@ -14,3 +14,6 @@ src/modals.tsx
 .claude/launch.json
 .claude/worktrees
 .DS_Store
+scripts/local/
+.env
+.env.*

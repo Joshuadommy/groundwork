@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { answerQuestion, MAX_PASSAGES, type AnswerDeps, type RetrievedChunk } from './answer-question'
-import { ABSTAIN_TEXT, type LabeledPassage, type ModelAnswer } from './verify-citations'
+import { answerQuestion, MAX_PASSAGES, type AnswerDeps, type GeneratedAnswer, type RetrievedChunk } from './answer-question'
+import { ABSTAIN_TEXT, type LabeledPassage } from './verify-citations'
 
 const chunk = (id: string, documentId: string, page: number, score: number, text = `Text ${id}`): RetrievedChunk => ({
   id,
@@ -18,7 +18,7 @@ const READY = new Map([
 
 function deps(
   chunks: RetrievedChunk[],
-  answer: ModelAnswer | ((passages: LabeledPassage[]) => ModelAnswer),
+  answer: GeneratedAnswer | ((passages: LabeledPassage[]) => GeneratedAnswer),
   ready = READY,
 ) {
   const generate = vi.fn(async (_q: string, passages: LabeledPassage[]) =>
@@ -136,5 +136,67 @@ describe('answerQuestion', () => {
       },
     }
     await expect(answerQuestion('q', d)).rejects.toThrow('AI service unavailable')
+  })
+})
+
+describe('answerQuestion coverage', () => {
+  const passages = [chunk('c1', 'remote', 3, 0.9)]
+
+  it('keeps the status verified and reports partial coverage when the model says so', async () => {
+    const { d } = deps(passages, {
+      answer: 'The stipend is $450 [S1]. The documents do not mention standing desks.',
+      citations: ['S1'],
+      answerable: true,
+      coverage: 'partial',
+    })
+    const result = await answerQuestion('Stipend, and standing desks?', d)
+    expect(result.status).toBe('verified')
+    expect(result.coverage).toBe('partial')
+  })
+
+  it('reports partial coverage on a partially verified answer too', async () => {
+    const { d } = deps(passages, {
+      answer: 'The stipend is $450 [S1]. Desks are covered [S7].',
+      citations: ['S1', 'S7'],
+      answerable: true,
+      coverage: 'partial',
+    })
+    const result = await answerQuestion('q', d)
+    expect(result.status).toBe('partial')
+    expect(result.coverage).toBe('partial')
+  })
+
+  it('defaults to full coverage when the model omits it', async () => {
+    const { d } = deps(passages, { answer: 'The stipend is $450 [S1].', citations: ['S1'], answerable: true })
+    expect((await answerQuestion('q', d)).coverage).toBe('full')
+  })
+
+  it('has no coverage when the answer abstains, whatever the model claimed', async () => {
+    const uncited = deps(passages, { answer: 'No citation here.', citations: [], answerable: true, coverage: 'partial' })
+    expect(await answerQuestion('q', uncited.d)).toMatchObject({ status: 'abstained', coverage: null })
+
+    const nothing = deps([], { answer: 'x [S1]', citations: ['S1'], answerable: true, coverage: 'full' })
+    expect(await answerQuestion('q', nothing.d)).toMatchObject({ status: 'abstained', coverage: null })
+  })
+})
+
+describe('answerQuestion quotes', () => {
+  it('attaches a quote found in the passage and drops one that is not', async () => {
+    const { d } = deps(
+      [chunk('c1', 'remote', 2, 0.9, 'Employees may work remotely up to three days per week.'), chunk('c2', 'remote', 4, 0.8, 'Core hours are 10 to 3.')],
+      {
+        answer: 'Three days [S1]. Core hours 10–3 [S2].',
+        citations: ['S1', 'S2'],
+        answerable: true,
+        quotes: [
+          { label: 'S1', quote: 'work remotely up to three days per week' },
+          { label: 'S2', quote: 'core hours are nine to five' },
+        ],
+      },
+    )
+    const result = await answerQuestion('q', d)
+    expect(result.status).toBe('verified')
+    expect(result.citations[0].quote).toBe('work remotely up to three days per week')
+    expect(result.citations[1].quote).toBeUndefined()
   })
 })

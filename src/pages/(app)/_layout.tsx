@@ -11,16 +11,14 @@
  * page in or out of (app)/ to flip it between dynamic and static. Require
  * sign-in on top of the data layer by nesting under (app)/(protected)/.
  *
- * This is where the app chrome (Navigation) lives, so static pages can present
- * their own layout without inheriting it.
+ * The app chrome (AppShell) lives one level down in (protected)/_layout.tsx.
  */
 
-import { Suspense, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AuthGate, DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
 import SignInScreen from '../../components/SignInScreen'
 import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
-import Navigation from '../../components/Navigation'
 import { useToast } from '@/components/ui'
 import { APP_NAME, SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
@@ -35,14 +33,9 @@ export default function AppLayout() {
           never mount the data layer (whose WebSocket requires a token). */}
       <AuthGate fallback={<SignInScreen />}>
         <AuthBoot>
-          <div className="flex h-screen flex-col bg-background overflow-hidden">
-            <Navigation />
-            <main className="flex-1 overflow-y-auto min-h-0">
-              <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
-                <Outlet />
-              </Suspense>
-            </main>
-          </div>
+          {/* The app shell is rendered by (protected)/_layout.tsx, after the
+              access gate, so the waiting and welcome screens stand alone. */}
+          <Outlet />
         </AuthBoot>
       </AuthGate>
     </DeepSpaceAuthProvider>
