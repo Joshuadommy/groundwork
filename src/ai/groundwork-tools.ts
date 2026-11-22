@@ -18,8 +18,9 @@ import { parsePassageKey } from '../lib/passage-key'
 import type { AnswerData } from '../schemas/answers-schema'
 import type { DocumentData } from '../schemas/documents-schema'
 import { createActionTools } from '../server/action-routes'
+import { retryIndexing } from '../server/documents'
 import { requireRole } from '../server/roles'
-import { OWNER_ROLES, TEAM_ROLES, type AppRole } from '../roles'
+import { EDITOR_ROLES, OWNER_ROLES, TEAM_ROLES, type AppRole } from '../roles'
 
 async function need(context: AgentToolContext<Env>, roles: readonly AppRole[]) {
   const check = await requireRole(context.env, context.userId, roles)
@@ -60,6 +61,17 @@ export function buildGroundworkTools(context: AgentToolContext<Env>): ToolSet {
           indexedPages: r.data.knowledgeItemIds?.length ?? 0,
           error: r.data.error || undefined,
         }))
+      },
+    }),
+
+    retry_document_indexing: tool({
+      description: 'Editors and Owners. Queue a document whose indexing failed for another attempt.',
+      inputSchema: z.object({ documentId: z.string().min(1) }),
+      execute: async ({ documentId }) => {
+        await need(context, EDITOR_ROLES)
+        const result = await retryIndexing(env, records(), documentId, userId)
+        if (!result.success) throw new AgentToolError('retry_failed', result.error, 400)
+        return { documentId, status: 'indexing' }
       },
     }),
 

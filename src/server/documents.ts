@@ -13,7 +13,7 @@
  */
 
 import { appFiles, enqueueJob, knowledge, KnowledgeError } from 'deepspace/worker'
-import type { ActionTools, JobContext, KnowledgeClient } from 'deepspace/worker'
+import type { ActionTools, JobContext, KnowledgeClient, KnowledgeItem } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { newDocumentId, safeFileName } from '../lib/document-files'
 import { documentFolder, pageFileName } from '../lib/passage-key'
@@ -26,6 +26,8 @@ export const INDEX_JOB = 'index-document'
 const ADD_CONCURRENCY = 3
 const POLL_INTERVAL_MS = 3_000
 const INDEX_TIMEOUT_MS = 5 * 60_000
+/** knowledge.list() refuses perPage above 50. */
+const LIST_PAGE_SIZE = 50
 
 export const SCANNED_PDF_ERROR =
   'No text could be read from this file. It may be a scanned image; upload a PDF with selectable text.'
@@ -80,6 +82,31 @@ export async function ingestDocument(
   return { success: true, documentId }
 }
 
+/**
+ * Queue a failed document for indexing again. The job removes the pages the
+ * failed run added (by saved item id) before adding them again.
+ */
+export async function retryIndexing(
+  env: Env,
+  tools: ActionTools,
+  documentId: string,
+  requestedBy: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const got = await tools.get<DocumentData>('documents', documentId)
+  if (!got.success) return { success: false, error: 'Document not found.' }
+  if (got.data.record.data.status !== 'failed') {
+    return { success: false, error: 'Only documents that failed to index can be retried.' }
+  }
+  const updated = await tools.update('documents', documentId, { status: 'indexing', error: '' })
+  if (!updated.success) return { success: false, error: updated.error ?? 'Could not update the document.' }
+  await enqueueJob(env.JOB_ROOMS, `app:${env.DEEPSPACE_APP_ID}`, INDEX_JOB, { documentId }, {
+    maxAttempts: 1,
+    enqueuedBy: requestedBy,
+  })
+  console.info(`[documents] retry queued ${documentId} by ${requestedBy}`)
+  return { success: true }
+}
+
 /** Page texts in order; page 1 is index 0. Markdown and text are one page. */
 async function readPages(env: Env, doc: DocumentData): Promise<string[]> {
   const res = await ownerFiles(env).download(doc.fileKey)
@@ -111,6 +138,18 @@ async function addPages(
   return ids
 }
 
+/** Every knowledge item in a document's folder (list() pages at most 50). */
+async function listFolder(kb: KnowledgeClient, documentId: string): Promise<KnowledgeItem[]> {
+  const items: KnowledgeItem[] = []
+  for (let page = 1; page <= 100; page++) {
+    const listed = await kb.list({ folder: documentFolder(documentId), perPage: LIST_PAGE_SIZE, page })
+    items.push(...listed.items)
+    const last = listed.totalPages ? page >= listed.totalPages : listed.items.length < LIST_PAGE_SIZE
+    if (last) break
+  }
+  return items
+}
+
 /** Resolves when every item is `completed`; throws on an item error or timeout. */
 async function waitUntilSearchable(
   kb: KnowledgeClient,
@@ -122,8 +161,7 @@ async function waitUntilSearchable(
   const wanted = new Set(itemIds)
   while (Date.now() < deadline) {
     if (signal.aborted) throw new Error('Indexing was canceled.')
-    const listed = await kb.list({ folder: documentFolder(documentId), perPage: 100 })
-    const mine = listed.items.filter((item) => wanted.has(item.id))
+    const mine = (await listFolder(kb, documentId)).filter((item) => wanted.has(item.id))
     const failed = mine.find((item) => item.status === 'error')
     if (failed) throw new Error(`Indexing failed for ${failed.key}: ${failed.error ?? 'unknown error'}`)
     // Items can be missing from list() for a few seconds right after add().
