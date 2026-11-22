@@ -10,6 +10,8 @@ describe('server actions registry', () => {
       'askQuestion',
       'deleteDocument',
       'retryDocumentIndexing',
+      'runEvals',
+      'saveEvalCase',
       'setupWorkspace',
     ])
     for (const [name, handler] of Object.entries(actions)) {

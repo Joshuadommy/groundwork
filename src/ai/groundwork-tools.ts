@@ -91,6 +91,7 @@ export function buildGroundworkTools(context: AgentToolContext<Env>): ToolSet {
         return {
           answerId,
           status: a.status,
+          coverage: a.coverage ?? null,
           answerText: a.answerText,
           citations: a.citations,
           removedCitations: a.removedCitations,

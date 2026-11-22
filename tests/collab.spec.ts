@@ -95,11 +95,14 @@ test.describe('askQuestion action', () => {
     expect(body).toMatchObject({ success: false, error: 'You do not have permission to do this.' })
   })
 
-  test('owner gets an abstained answer when nothing relevant is indexed', async ({ users, request }) => {
+  test('owner gets an abstained answer for a question the documents do not cover', async ({ users, request }) => {
     test.skip(
       !localOwnerIs('GW Owner'),
       'Needs OWNER_USER_ID in .dev.vars set to GW Owner; run with npx playwright test -c tests/playwright.config.ts',
     )
+    // Once documents are indexed this makes a real, owner-billed model call,
+    // so it runs only on request.
+    test.skip(process.env.GW_LIVE_AI !== '1', 'Makes a live AI call; set GW_LIVE_AI=1 to run it')
     const [owner] = await users(['GW Owner'])
     await owner.page.goto('/ask')
     await expect(owner.page.getByTestId('page-ask')).toBeVisible({ timeout: 15_000 })
@@ -133,5 +136,73 @@ test.describe('owner UI', () => {
     await owner.page.getByTestId('upload-input').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('') })
     await expect(owner.page.getByTestId('upload-file-chip')).toContainText('This file is empty.')
     await expect(owner.page.getByTestId('upload-submit')).toBeDisabled()
+  })
+})
+
+test.describe('access approval, live feedback and server-enforced roles', () => {
+  test('owner approves a waiting user; their screen becomes the app; a Viewer cannot save eval cases', async ({ users, request }) => {
+    test.skip(
+      !localOwnerIs('GW Owner'),
+      'Needs OWNER_USER_ID in .dev.vars set to GW Owner; run with npx playwright test -c tests/playwright.config.ts',
+    )
+    test.setTimeout(120_000)
+    const [owner, guest] = await users(['GW Owner', 'GW Editor'])
+
+    await guest.page.goto('/ask')
+    await expect(guest.page.getByTestId('waiting-for-access')).toBeVisible({ timeout: 15_000 })
+
+    await owner.page.goto('/team')
+    const waitingRow = owner.page.locator(`[data-testid=waiting-row][data-email="${guest.email}"]`)
+    await expect(waitingRow).toBeVisible({ timeout: 15_000 })
+
+    try {
+      await waitingRow.getByRole('button', { name: 'Approve as Viewer' }).click()
+      await expect(owner.page.locator(`[data-testid=member-row][data-email="${guest.email}"]`)).toBeVisible()
+
+      // The guest's open tab turns into the app without a reload.
+      await expect(guest.page.getByTestId('page-ask')).toBeVisible({ timeout: 20_000 })
+      await expect(guest.page.getByTestId('waiting-for-access')).toHaveCount(0)
+
+      // Server-enforced: an approved Viewer cannot save eval cases, re-run evals,
+      // delete documents or upload, whatever the UI shows.
+      const token = await tokenFor(guest)
+      const refused = { success: false, error: 'You do not have permission to do this.' }
+      expect((await callAction(request, 'saveEvalCase', { answerId: 'any' }, token)).body).toEqual(refused)
+      expect((await callAction(request, 'runEvals', {}, token)).body).toEqual(refused)
+      expect((await callAction(request, 'deleteDocument', { documentId: 'any' }, token)).body).toEqual(refused)
+      const upload = await request.post('/api/documents', {
+        headers: { Authorization: `Bearer ${token}` },
+        multipart: { file: { name: 'x.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') } },
+      })
+      expect(upload.status()).toBe(403)
+
+      // Live feedback across two windows (needs at least one finished answer locally).
+      await owner.page.goto('/ask')
+      const ownerFirst = owner.page.locator('[data-testid=answer]:not([data-status=pending]):not([data-status=error])').first()
+      if (await ownerFirst.count()) {
+        const id = await ownerFirst.locator('h3').getAttribute('id')
+        const guestCard = guest.page.locator(`article:has(h3#${id})`)
+        const ownerCount = owner.page.locator(`article:has(h3#${id})`).getByTestId('count-up')
+        const before = Number(await ownerCount.innerText())
+        await guestCard.getByTestId('vote-up').click()
+        await expect(ownerCount).toHaveText(String(before + 1), { timeout: 10_000 })
+        await guestCard.getByTestId('vote-up').click() // toggle off again
+        await expect(ownerCount).toHaveText(String(before), { timeout: 10_000 })
+      }
+    } finally {
+      // Always put the guest back to "waiting" so other specs see the expected state.
+      await owner.page.goto('/team')
+      const member = owner.page.locator(`[data-testid=member-row][data-email="${guest.email}"]`)
+      const waiting = owner.page.locator(`[data-testid=waiting-row][data-email="${guest.email}"]`)
+      // Wait for the roster to load: count() alone does not wait, and an empty
+      // roster once skipped this cleanup and left the guest approved.
+      await expect(member.or(waiting)).toBeVisible({ timeout: 15_000 })
+      if (await member.count()) {
+        await member.getByRole('button', { name: /^Remove / }).click()
+        await owner.page.getByTestId('confirm-dialog').getByRole('button', { name: 'Remove member' }).click()
+        await expect(owner.page.locator(`[data-testid=waiting-row][data-email="${guest.email}"]`)).toBeVisible({ timeout: 15_000 })
+      }
+    }
+    await expect(guest.page.getByTestId('waiting-for-access')).toBeVisible({ timeout: 20_000 })
   })
 })

@@ -16,6 +16,8 @@ import { useDocuments, useNames } from '../../../hooks/useWorkspace'
 import { callAction } from '../../../lib/api'
 import { canEditDocuments } from '../../../roles'
 import type { AnswerData, Citation } from '../../../schemas/answers-schema'
+import type { EvalCaseData } from '../../../schemas/evals-schema'
+import type { FeedbackData } from '../../../schemas/feedback-schema'
 
 const QUESTION_MAX = 2000
 const SUGGESTIONS = [
@@ -29,6 +31,15 @@ export default function AskPage() {
   const names = useNames()
   const { records: docs, status: docsStatus } = useDocuments()
   const { records: answers, status } = useQuery<AnswerData>('answers', { orderBy: 'createdAt', orderDir: 'desc', limit: 50 })
+  // One live subscription each for all ratings and saved cases, grouped per answer.
+  const { records: ratings } = useQuery<FeedbackData>('feedback', { limit: 5000 })
+  const { records: cases } = useQuery<EvalCaseData>('evalCases', { limit: 1000 })
+  const ratingsByAnswer = useMemo(() => {
+    const m = new Map<string, typeof ratings>()
+    for (const r of ratings) m.set(r.data.answerId, [...(m.get(r.data.answerId) ?? []), r])
+    return m
+  }, [ratings])
+  const savedAnswers = useMemo(() => new Set(cases.map((c) => c.data.sourceAnswerId)), [cases])
   const [open, setOpen] = useState<{ answerId: string; label: string } | null>(null)
   const [banner, setBanner] = useState<{ question: string; error: string } | null>(null)
 
@@ -120,7 +131,7 @@ export default function AskPage() {
                     setOpen((cur) => (cur?.answerId === r.recordId && cur.label === c.label ? null : { answerId: r.recordId, label: c.label }))
                   }
                   onRetry={(q) => void ask(q)}
-                  footer={<Feedback answer={r} />}
+                  footer={<Feedback answer={r} ratings={ratingsByAnswer.get(r.recordId) ?? []} saved={savedAnswers.has(r.recordId)} />}
                 />
               ))}
             </div>
