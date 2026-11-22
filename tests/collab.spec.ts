@@ -57,6 +57,33 @@ test('new sign-ins wait for access and receive no records', async ({ users }) =>
   }
 })
 
+test.describe('document upload', () => {
+  const pdf = {
+    name: 'refused.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4\n% Groundwork test upload that must be refused\n'),
+  }
+
+  test('a viewer gets 403', async ({ users, request }) => {
+    // GW Viewer is never approved, so its role is `viewer` (shown as No access).
+    const [viewer] = await users(['GW Viewer'])
+    await viewer.page.goto('/ask')
+    await expect(viewer.page.getByTestId('waiting-for-access')).toBeVisible({ timeout: 15_000 })
+
+    const res = await request.post('/api/documents', {
+      headers: { Authorization: `Bearer ${await tokenFor(viewer)}` },
+      multipart: { file: pdf },
+    })
+    expect(res.status()).toBe(403)
+    expect(await res.json()).toEqual({ success: false, error: 'You do not have permission to do this.' })
+  })
+
+  test('requires a token', async ({ request }) => {
+    const res = await request.post('/api/documents', { multipart: { file: pdf } })
+    expect(res.status()).toBe(401)
+  })
+})
+
 test.describe('askQuestion action', () => {
   test('refuses people waiting for access', async ({ users, request }) => {
     const [waiting] = await users(['GW Viewer'])

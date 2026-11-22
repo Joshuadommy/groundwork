@@ -7,7 +7,7 @@
  * only come from verifyCitations.
  */
 
-import type { ActionHandler, ActionTools } from 'deepspace/worker'
+import type { ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { answerQuestion, type ReadyDocument } from '../lib/answer-question'
 import type { AnswerData } from '../schemas/answers-schema'
@@ -34,8 +34,14 @@ export function readyDocumentsFrom(tools: ActionTools) {
   }
 }
 
-export const askQuestion: ActionHandler<Env> = withRole(TEAM_ROLES, async ({ userId, params, tools, env }) => {
-  const question = typeof params.question === 'string' ? params.question.trim() : ''
+/** The ask flow, shared by the askQuestion action and the ask_question agent tool. */
+export async function runAsk(
+  env: Env,
+  tools: ActionTools,
+  userId: string,
+  rawQuestion: unknown,
+): Promise<ActionResult<{ answerId: string; status: AnswerData['status'] }>> {
+  const question = typeof rawQuestion === 'string' ? rawQuestion.trim() : ''
   if (!question) return { success: false, error: 'Enter a question.' }
   if (question.length > QUESTION_MAX_CHARS) {
     return { success: false, error: `Questions can be at most ${QUESTION_MAX_CHARS} characters.` }
@@ -81,4 +87,8 @@ export const askQuestion: ActionHandler<Env> = withRole(TEAM_ROLES, async ({ use
     })
     return { success: false, error: "Groundwork couldn't reach the AI service. Try again in a moment." }
   }
-})
+}
+
+export const askQuestion: ActionHandler<Env> = withRole(TEAM_ROLES, async ({ userId, params, tools, env }) =>
+  runAsk(env, tools, userId, params.question),
+)

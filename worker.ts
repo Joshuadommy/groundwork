@@ -26,6 +26,7 @@ import { tasks as cronTasks, runTask as runCronTask } from './src/cron.js'
 import { runJob } from './src/jobs.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
+import { registerDocumentRoutes } from './src/server/document-routes.js'
 import {
   registerAuthAndIntegrationRoutes,
   registerPlatformProxyRoutes,
@@ -143,6 +144,7 @@ app.use('*', async (c, next) => {
 registerAuthAndIntegrationRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
+registerDocumentRoutes(app)
 // Every scaffold exposes selected tools through HTTP, MCP and browser tools.
 // Only copilot owns the collections needed for the in-app chat UI.
 registerAgent(app, {
