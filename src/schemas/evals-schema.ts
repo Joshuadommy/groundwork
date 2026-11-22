@@ -2,13 +2,13 @@ import type { CollectionSchema } from 'deepspace/schema'
 import type { AnswerStatus, Citation } from './answers-schema'
 import { teamReadServerWrite } from './permissions'
 
-export interface EvalCaseData {
+export type EvalCaseData = {
   question: string
   sourceAnswerId: string
   createdBy: string
 }
 
-export interface EvalRunData {
+export type EvalRunData = {
   evalCaseId: string
   batchId: string
   answerText: string

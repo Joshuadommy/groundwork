@@ -1,7 +1,7 @@
 import type { CollectionSchema, RolePermissions } from 'deepspace/schema'
 import { NONE } from './permissions'
 
-export interface FeedbackData {
+export type FeedbackData = {
   answerId: string
   userId: string
   rating: 'up' | 'down'

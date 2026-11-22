@@ -20,6 +20,13 @@ export default defineConfig({
     // the generated app and keep local dev/test startup deterministic.
     cloudflare({
       inspectorPort: false,
+      // The [[ai_search]] binding in wrangler.toml is DeepSpace manifest
+      // metadata: app code reaches managed knowledge through knowledge(env)
+      // over DeepSpace's signed platform transport, never env.KNOWLEDGE. With
+      // remote bindings on, the plugin tries to open a Cloudflare remote proxy
+      // for it and local dev fails asking for CLOUDFLARE_API_TOKEN. Dev-only;
+      // the app has no other remote bindings.
+      remoteBindings: false,
     }),
     // The app id `define`, the preview-secret cleanup, and the client dedupe
     // hint — all shipped by the SDK so a fix to any of them arrives with a

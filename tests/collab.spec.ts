@@ -16,6 +16,7 @@
  * cleanup. No need to manage browser contexts manually.
  */
 import { test, expect, loadAllTestAccounts } from 'deepspace/testing'
+import { callAction, localOwnerIs, tokenFor } from './helpers/actions'
 
 // A machine that has never created test accounts is the normal state of a
 // fresh checkout, and there `users()` throws — turning "you have no pool yet"
@@ -54,4 +55,41 @@ test('new sign-ins wait for access and receive no records', async ({ users }) =>
       timeout: 15_000,
     })
   }
+})
+
+test.describe('askQuestion action', () => {
+  test('refuses people waiting for access', async ({ users, request }) => {
+    const [waiting] = await users(['GW Viewer'])
+    await waiting.page.goto('/ask')
+    await expect(waiting.page.getByTestId('waiting-for-access')).toBeVisible({ timeout: 15_000 })
+
+    const { status, body } = await callAction(
+      request,
+      'askQuestion',
+      { question: '[test] How many remote days?' },
+      await tokenFor(waiting),
+    )
+    expect(status).toBe(200)
+    expect(body).toMatchObject({ success: false, error: 'You do not have permission to do this.' })
+  })
+
+  test('owner gets an abstained answer when nothing relevant is indexed', async ({ users, request }) => {
+    test.skip(
+      !localOwnerIs('GW Owner'),
+      'Needs OWNER_USER_ID in .dev.vars set to GW Owner; run with npx playwright test -c tests/playwright.config.ts',
+    )
+    const [owner] = await users(['GW Owner'])
+    await owner.page.goto('/ask')
+    await expect(owner.page.getByTestId('page-ask')).toBeVisible({ timeout: 15_000 })
+
+    const { status, body } = await callAction(
+      request,
+      'askQuestion',
+      { question: '[test] What is the boiling point of tungsten on Mars?' },
+      await tokenFor(owner),
+    )
+    expect(status).toBe(200)
+    expect(body).toMatchObject({ success: true, data: { status: 'abstained' } })
+    expect(typeof body!.data.answerId).toBe('string')
+  })
 })

@@ -5,7 +5,7 @@ export const ANSWER_STATUSES = ['pending', 'verified', 'partial', 'abstained', '
 export type AnswerStatus = (typeof ANSWER_STATUSES)[number]
 
 /** A citation that survived verification, snapshotted at answer time. */
-export interface Citation {
+export type Citation = {
   /** The request-local passage label the model cited, e.g. "S2". */
   label: string
   documentId: string
@@ -16,7 +16,7 @@ export interface Citation {
   chunkId: string
 }
 
-export interface AnswerData {
+export type AnswerData = {
   question: string
   answerText: string
   citations: Citation[]

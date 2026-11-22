@@ -7,7 +7,7 @@ export type DocumentKind = (typeof DOCUMENT_KINDS)[number]
 export const DOCUMENT_STATUSES = ['indexing', 'ready', 'failed'] as const
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number]
 
-export interface DocumentData {
+export type DocumentData = {
   title: string
   kind: DocumentKind
   /** Key of the original file in the owner's private app-files folder. */
