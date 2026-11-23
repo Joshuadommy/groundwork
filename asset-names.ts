@@ -1,17 +1,19 @@
 /**
  * Build-output rules for scripts the browser loads by URL.
  *
- * DeepSpace's production asset serving answers `.mjs` files with
- * `Content-Type: application/octet-stream` (`.js` gets
- * `application/javascript`). Browsers refuse to run a module script or module
- * worker with a non-JavaScript MIME type, so the PDF.js worker
- * (`pdfjs-dist/build/pdf.worker.min.mjs`, emitted as an asset by
- * `new URL(..., import.meta.url)`) failed to load on the live site and every
- * PDF failed to open. Local dev and `vite preview` serve `.mjs` as JavaScript,
- * so nothing local showed it (morning review, bug 2).
+ * DeepSpace's production asset serving answered the PDF.js worker, copied as
+ * `pdf.worker.min-*.mjs`, with `Content-Type: application/octet-stream`.
+ * Browsers refuse to run a module worker with a non-JavaScript MIME type, so
+ * no PDF opened on the live site. Local dev and `vite preview` serve `.mjs` as
+ * JavaScript, so nothing local showed it (morning review, bug 2).
  *
- * Fix: emit such assets with a `.js` extension. Guard: fail the build if any
- * `.mjs`/`.cjs` file is about to ship in the client bundle.
+ * Renaming the copied file to `.js` was not enough: live kept serving the same
+ * bytes as octet-stream (deploy stores assets by content hash, and unchanged
+ * bytes appear to keep the type they were first stored with). The fix is in
+ * src/components/viewer/pdf-worker.ts: the worker is bundled as app code.
+ *
+ * What stays here is the guard: emit any `.mjs`/`.cjs` asset as `.js`, and
+ * fail the build if one would ship anyway.
  */
 
 import type { Plugin } from 'vite'

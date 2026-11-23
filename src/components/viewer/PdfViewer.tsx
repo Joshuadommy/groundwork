@@ -5,7 +5,11 @@ import { clearHighlight, findTextRange, highlightTarget, paintHighlight, scrollT
 import type { Citation } from '../../schemas/answers-schema'
 import { I } from '../icons'
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
+// The worker is bundled as app code (see pdf-worker.ts for why not a URL to
+// the .mjs file). One worker for the tab, reused by every document.
+if (!pdfjs.GlobalWorkerOptions.workerPort) {
+  pdfjs.GlobalWorkerOptions.workerPort = new Worker(new URL('./pdf-worker.ts', import.meta.url), { type: 'module' })
+}
 
 const BASE_WIDTH = 720
 const MIN_ZOOM = 50

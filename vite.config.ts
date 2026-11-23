@@ -57,6 +57,8 @@ export default defineConfig({
     // PDF.js worker on the live site. Fails the build if one would ship.
     scriptAssetGuard(),
   ],
+  // The PDF.js worker (src/components/viewer/pdf-worker.ts) is a module worker.
+  worker: { format: 'es' },
   environments: {
     client: {
       build: {

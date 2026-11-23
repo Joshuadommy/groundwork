@@ -25,6 +25,8 @@ describe('asset names', () => {
   it.skipIf(!existsSync('dist/client/assets'))('the built client ships no .mjs or .cjs files', () => {
     const files = readdirSync('dist/client/assets')
     expect(misservedScripts(files)).toEqual([])
-    expect(files.some((f) => /^pdf\.worker\.min-.*\.js$/.test(f))).toBe(true)
+    // The PDF.js worker ships as a bundled .js chunk, not a copied asset.
+    expect(files.some((f) => /^pdf-worker-.*\.js$/.test(f))).toBe(true)
+    expect(files.some((f) => f.startsWith('pdf.worker'))).toBe(false)
   })
 })
