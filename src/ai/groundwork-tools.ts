@@ -13,10 +13,12 @@ import { AgentToolError, knowledge } from 'deepspace/worker'
 import type { AgentToolContext } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { runAsk, QUESTION_MAX_CHARS } from '../actions/ask'
+import { runAddEvalCase, runEvalBatch } from '../actions/evals'
 import { runSetupWorkspace } from '../actions/setup'
 import { parsePassageKey } from '../lib/passage-key'
 import type { AnswerData } from '../schemas/answers-schema'
 import type { DocumentData } from '../schemas/documents-schema'
+import type { EvalCaseData, EvalRunData } from '../schemas/evals-schema'
 import { createActionTools } from '../server/action-tools'
 import { retryIndexing } from '../server/documents'
 import { requireRole } from '../server/roles'
@@ -127,6 +129,73 @@ export function buildGroundworkTools(context: AgentToolContext<Env>): ToolSet {
           parsed: parsePassageKey(chunk),
           text: chunk.text,
         }))
+      },
+    }),
+
+    list_answers: tool({
+      description: 'Recent answers, newest first: question, status, how many passages were cited and which document pages.',
+      inputSchema: z.object({ limit: z.number().int().min(1).max(50).optional() }),
+      execute: async ({ limit }) => {
+        await need(context, TEAM_ROLES)
+        const res = await records().query<AnswerData>('answers', { orderBy: 'createdAt', orderDir: 'desc', limit: limit ?? 20 })
+        if (!res.success) throw new AgentToolError('query_failed', res.error ?? 'Could not list answers.')
+        return res.data.records.map((r) => ({
+          id: r.recordId,
+          createdAt: r.createdAt,
+          askedBy: r.data.askedBy,
+          question: r.data.question,
+          status: r.data.status,
+          coverage: r.data.coverage,
+          citations: r.data.citations.map((c) => `${c.docTitle} p.${c.page}`),
+        }))
+      },
+    }),
+
+    add_eval_case: tool({
+      description: 'Editors and Owners. Add a question directly as an eval case (the same question twice returns the existing case).',
+      inputSchema: z.object({ question: z.string().min(1).max(QUESTION_MAX_CHARS) }),
+      execute: async ({ question }) => {
+        await need(context, EDITOR_ROLES)
+        const result = await runAddEvalCase(records(), userId, question)
+        if (!result.success) throw new AgentToolError('add_failed', result.error, 400)
+        return result.data
+      },
+    }),
+
+    run_evals: tool({
+      description:
+        'Owners only. Re-run eval cases through the same pipeline as askQuestion (one model call per case that retrieves passages). ' +
+        'Optionally name the case ids to run; otherwise up to 10, least recently run first.',
+      inputSchema: z.object({ caseIds: z.array(z.string().min(1)).max(10).optional() }),
+      execute: async ({ caseIds }) => {
+        await need(context, OWNER_ROLES)
+        const result = await runEvalBatch(env, records(), caseIds)
+        if (!result.success) throw new AgentToolError('run_failed', result.error, 400)
+        return result.data
+      },
+    }),
+
+    list_eval_results: tool({
+      description: 'Every eval case with its latest run: status, cited document pages, whether it changed.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        await need(context, TEAM_ROLES)
+        const cases = await records().query<EvalCaseData>('evalCases', { orderBy: 'createdAt', orderDir: 'asc', limit: 500 })
+        const runs = await records().query<EvalRunData>('evalRuns', { orderBy: 'runAt', orderDir: 'desc', limit: 2000 })
+        if (!cases.success || !runs.success) throw new AgentToolError('query_failed', 'Could not load eval results.')
+        return cases.data.records.map((c) => {
+          const history = runs.data.records.filter((r) => r.data.evalCaseId === c.recordId)
+          return {
+            id: c.recordId,
+            question: c.data.question,
+            runs: history.map((r) => ({
+              runAt: r.data.runAt,
+              status: r.data.status,
+              changed: r.data.changedFromPrevious,
+              cites: r.data.citations.map((x) => `${x.docTitle} p.${x.page}`),
+            })),
+          }
+        })
       },
     }),
   }

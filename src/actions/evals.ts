@@ -52,15 +52,16 @@ export const saveEvalCase: ActionHandler<Env> = withRole(EDITOR_ROLES, async ({ 
   return { success: true, data: { evalCaseId: created.data.recordId, alreadySaved: false } }
 })
 
-export const addEvalCase: ActionHandler<Env> = withRole(EDITOR_ROLES, async ({ userId, params, tools }) => {
-  const question = typeof params.question === 'string' ? params.question.trim() : ''
-  if (!question) return { success: false, error: 'Enter a question.' }
+/** Shared by the addEvalCase action and the add_eval_case agent tool (callers check the role). */
+export async function runAddEvalCase(tools: ActionTools, userId: string, rawQuestion: unknown) {
+  const question = typeof rawQuestion === 'string' ? rawQuestion.trim() : ''
+  if (!question) return { success: false as const, error: 'Enter a question.' }
   if (question.length > QUESTION_MAX_CHARS) {
-    return { success: false, error: `Questions can be at most ${QUESTION_MAX_CHARS} characters.` }
+    return { success: false as const, error: `Questions can be at most ${QUESTION_MAX_CHARS} characters.` }
   }
   const existing = await tools.query<EvalCaseData>('evalCases', { limit: 1000 })
   const dup = existing.success ? existing.data.records.find((r) => sameQuestion(r.data.question, question)) : undefined
-  if (dup) return { success: true, data: { evalCaseId: dup.recordId, alreadySaved: true } }
+  if (dup) return { success: true as const, data: { evalCaseId: dup.recordId, alreadySaved: true } }
   const created = await tools.create<EvalCaseData>('evalCases', {
     question,
     sourceAnswerId: `${MANUAL_CASE_PREFIX}${crypto.randomUUID()}`,
@@ -68,8 +69,12 @@ export const addEvalCase: ActionHandler<Env> = withRole(EDITOR_ROLES, async ({ u
   })
   if (!created.success) return created
   console.info(`[evals] case ${created.data.recordId} added directly by ${userId}`)
-  return { success: true, data: { evalCaseId: created.data.recordId, alreadySaved: false } }
-})
+  return { success: true as const, data: { evalCaseId: created.data.recordId, alreadySaved: false } }
+}
+
+export const addEvalCase: ActionHandler<Env> = withRole(EDITOR_ROLES, async ({ userId, params, tools }) =>
+  runAddEvalCase(tools, userId, params.question),
+)
 
 async function latestRuns(tools: ActionTools): Promise<Map<string, EvalRunData>> {
   const runs = await tools.query<EvalRunData>('evalRuns', { orderBy: 'runAt', orderDir: 'desc', limit: 2000 })
@@ -89,10 +94,13 @@ async function baselineFor(tools: ActionTools, c: EvalCaseData, last: EvalRunDat
   return { status: source.data.record.data.status, citations: source.data.record.data.citations }
 }
 
-export const runEvals: ActionHandler<Env> = withRole(OWNER_ROLES, async ({ tools, env }) => {
-  const cases = await tools.query<EvalCaseData>('evalCases', { limit: 500 })
-  if (!cases.success) return { success: false, error: 'Could not load eval cases.' }
-  if (cases.data.records.length === 0) return { success: false, error: 'There are no eval cases to run.' }
+/** Shared by the runEvals action and the run_evals agent tool (callers check the role). */
+export async function runEvalBatch(env: Env, tools: ActionTools, onlyIds?: string[]) {
+  const all = await tools.query<EvalCaseData>('evalCases', { limit: 500 })
+  if (!all.success) return { success: false as const, error: 'Could not load eval cases.' }
+  // The agent tool can name the cases to run (to keep a measured run within a model-call budget).
+  const cases = onlyIds ? { data: { records: all.data.records.filter((r) => onlyIds.includes(r.recordId)) } } : all
+  if (cases.data.records.length === 0) return { success: false as const, error: 'There are no eval cases to run.' }
 
   const latest = await latestRuns(tools)
   const chosen = pickCasesToRun(
@@ -137,7 +145,7 @@ export const runEvals: ActionHandler<Env> = withRole(OWNER_ROLES, async ({ tools
   const total = cases.data.records.length
   console.info(`[evals] ${batchId} ran=${chosen.length} changed=${changed} failed=${failed} total=${total}`)
   return {
-    success: true,
+    success: true as const,
     data: {
       batchId,
       ran: chosen.length - failed,
@@ -147,4 +155,6 @@ export const runEvals: ActionHandler<Env> = withRole(OWNER_ROLES, async ({ tools
       cap: EVAL_RUN_CAP,
     },
   }
-})
+}
+
+export const runEvals: ActionHandler<Env> = withRole(OWNER_ROLES, async ({ tools, env }) => runEvalBatch(env, tools))
