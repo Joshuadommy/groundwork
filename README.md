@@ -2,7 +2,7 @@
 
 A team knowledge assistant that answers questions from your team's documents, cites the exact passages it used, and refuses to cite anything it didn't actually retrieve.
 
-**Live:** https://groundwork.app.space (private: sign in with Google or GitHub, then wait for the owner to approve you)
+**Live:** https://groundwork.app.space (private: sign in with Google, Microsoft, Apple or GitHub, then wait for the owner to approve you)
 
 Built on the [DeepSpace](https://docs.deep.space) SDK (Cloudflare Workers, React). The full plan, design decisions, verification log and SDK feedback are in [PLAN.md](PLAN.md).
 
@@ -58,7 +58,7 @@ The highlight: the model also returns one short quote per citation; code keeps i
 
 | Used | Why |
 |---|---|
-| Auth (Google, GitHub) | Answers, ratings and eval cases belong to real teammates |
+| Auth (Google, Microsoft, Apple, GitHub) | Answers, ratings and eval cases belong to real teammates |
 | RBAC (custom `editor` role) | Viewers ask; Editors manage documents; Owners manage the team and run evals |
 | Real-time records | New answers, indexing status, ratings and role changes appear live for everyone |
 | App files (`appFiles`) | Originals stored in the owner's private folder, served only through a role-checked route |
@@ -90,6 +90,8 @@ npx playwright test -c tests/playwright.config.ts  # browser and multi-user test
 
 - **Unit** (`src/**/*.test.ts`): citation verification, the ask pipeline with a fake retriever and generator (verified, partial, abstain, coverage, quotes), passage keys, quotes, eval change detection, upload rules, the action registry, and the collection permissions (no client writes to answers, documents or evals).
 - **Playwright** (`tests/`): signed-out gate, theme persistence, 404, auth on every route, and multi-user tests with DeepSpace test accounts: a person waiting for access gets **403 on upload**; the owner approves a waiting user on the Team page and their screen becomes the app live; that approved **Viewer is refused** saving an eval case, re-running evals, deleting and uploading; a rating in one window appears live in the other.
+- Also: the access gate never shows "waiting for access" before the server confirms the role, on refresh or through a failed token refresh (`tests/access-gate.spec.ts`); every ready document opens in the viewer (`tests/viewer.spec.ts`); the sign-in screen offers exactly the providers the DeepSpace auth worker starts (`tests/smoke.spec.ts`); the build fails if a `.mjs` script would ship (`asset-names.ts`, which production serves as `application/octet-stream`).
+- After a deploy: `GW_LIVE_URL=https://groundwork.app.space npx playwright test -c tests/playwright.config.ts live-assets` checks that every deployed script, including the PDF.js worker, is served as JavaScript.
 - Owner-only specs need `OWNER_USER_ID` in `.dev.vars` set to the "GW Owner" test account and are run with Playwright directly (see PLAN.md § Testing). Two specs make a real, owner-billed model call and run only with `GW_LIVE_AI=1` (`tests/e2e.spec.ts`: ask → verified → open the cited page highlighted).
 
 Screenshots: `npx tsx scripts/screenshots.mts http://127.0.0.1:5179` against a local dev server.

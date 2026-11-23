@@ -6,6 +6,7 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 import checker from 'vite-plugin-checker'
 import { deepspaceBuild } from 'deepspace/build'
 import { prerender } from './prerender.ts'
+import { assetFileNames, scriptAssetGuard } from './asset-names.ts'
 
 const appDir = fileURLToPath(new URL('.', import.meta.url))
 
@@ -52,7 +53,18 @@ export default defineConfig({
         useFlatConfig: true,
       },
     }),
+    // Production serves .mjs as application/octet-stream, which broke the
+    // PDF.js worker on the live site. Fails the build if one would ship.
+    scriptAssetGuard(),
   ],
+  environments: {
+    client: {
+      build: {
+        // .mjs/.cjs assets (the PDF.js worker) are emitted as .js; see asset-names.ts.
+        rolldownOptions: { output: { assetFileNames } },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

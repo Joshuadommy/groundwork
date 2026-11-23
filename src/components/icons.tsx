@@ -126,6 +126,22 @@ export const I: Record<string, ReactElement> = {
       <path fill="#EA4335" d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.4A9 9 0 001 5l3 2.3c.7-2.1 2.7-3.7 5-3.7z" />
     </svg>
   ),
+  microsoft: (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path fill="#F25022" d="M1 1h7.5v7.5H1z" />
+      <path fill="#7FBA00" d="M9.5 1H17v7.5H9.5z" />
+      <path fill="#00A4EF" d="M1 9.5h7.5V17H1z" />
+      <path fill="#FFB900" d="M9.5 9.5H17V17H9.5z" />
+    </svg>
+  ),
+  apple: (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M13.4 9.6c0-1.9 1.6-2.8 1.6-2.9-.9-1.3-2.2-1.4-2.7-1.5-1.1-.1-2.2.7-2.8.7-.6 0-1.5-.7-2.5-.6-1.3 0-2.5.8-3.1 1.9-1.4 2.4-.4 5.9.9 7.8.7.9 1.4 2 2.4 1.9 1-.1 1.3-.6 2.5-.6s1.5.6 2.5.6c1 0 1.7-1 2.3-1.9.7-1.1 1-2.1 1-2.2 0 0-2-.8-2.1-3.2zM11.6 3.9c.5-.6.9-1.5.8-2.4-.8 0-1.7.5-2.3 1.1-.5.6-.9 1.5-.8 2.3.9.1 1.8-.4 2.3-1z"
+      />
+    </svg>
+  ),
   github: (
     <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
       <path

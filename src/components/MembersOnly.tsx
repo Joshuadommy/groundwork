@@ -16,18 +16,21 @@ import { useAppRole } from '../hooks/useAppRole'
 import { useWorkspace } from '../hooks/useWorkspace'
 import { Logo } from './icons'
 import { ThemeToggle } from './ThemeToggle'
+import LoadingScreen from './LoadingScreen'
 import WelcomeScreen from './WelcomeScreen'
 
 export default function MembersOnly({ children }: { children: ReactNode }) {
-  const { role, isLoading } = useAppRole()
-  if (isLoading) return <div aria-busy="true" className="fixed inset-0 bg-background" />
-  if (role === null || role === 'viewer') return <WaitingForAccess />
+  const { role } = useAppRole()
+  // Loading until the server has confirmed a role; the waiting screen only
+  // for a confirmed "viewer" (src/lib/access-state.ts).
+  if (role === null) return <LoadingScreen />
+  if (role === 'viewer') return <WaitingForAccess />
   return <WorkspaceGate isOwner={role === 'admin'}>{children}</WorkspaceGate>
 }
 
 function WorkspaceGate({ isOwner, children }: { isOwner: boolean; children: ReactNode }) {
   const { exists } = useWorkspace()
-  if (exists === null) return <div aria-busy="true" className="fixed inset-0 bg-background" />
+  if (exists === null) return <LoadingScreen />
   if (!exists && isOwner) return <WelcomeScreen />
   return <>{children}</>
 }

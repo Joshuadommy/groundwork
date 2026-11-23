@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { captureConsoleErrors } from './helpers/errors'
+import { SIGN_IN_PROVIDERS } from '../src/lib/sign-in-providers'
 
 /**
  * Smoke tests covering both page kinds this template ships:
@@ -56,11 +57,46 @@ test.describe('Smoke tests', () => {
     const errors = captureConsoleErrors(page)
     await page.goto('/ask')
     await expect(page.getByTestId('sign-in-screen')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByTestId('sign-in-google')).toBeVisible()
-    await expect(page.getByTestId('sign-in-github')).toBeVisible()
+    // The prototype's order: Google, Microsoft, Apple, then GitHub.
+    await expect(page.locator('.oauth button')).toHaveText([
+      'Continue with Google',
+      'Continue with Microsoft',
+      'Continue with Apple',
+      'Continue with GitHub',
+    ])
     await expect(page.getByTestId('app-navigation')).toHaveCount(0)
     await expect(page.getByTestId('page-ask')).toHaveCount(0)
     expect(errors).toEqual([])
+  })
+
+  test('each sign-in button starts that provider', async ({ page }) => {
+    for (const { id } of SIGN_IN_PROVIDERS) {
+      await page.goto('/ask')
+      await expect(page.getByTestId('sign-in-screen')).toBeVisible({ timeout: 15000 })
+      const redirect = page.waitForRequest((r) => r.url().includes('/api/auth/social-redirect'))
+      // Stop at our own route: following it would leave for the provider.
+      await page.route('**/api/auth/social-redirect*', (route) => route.fulfill({ status: 204 }))
+      await page.getByTestId(`sign-in-${id}`).click()
+      expect(new URL((await redirect).url()).searchParams.get('provider')).toBe(id)
+      await page.unroute('**/api/auth/social-redirect*')
+    }
+  })
+
+  // Asks the real DeepSpace auth worker (the one local dev uses) which
+  // providers it will start, instead of trusting a type: the SDK's
+  // AuthOverlay types only Google and GitHub, which is how Apple and
+  // Microsoft went missing (morning review, bug 3).
+  test('the sign-in screen offers exactly the providers DeepSpace supports', async ({ request }) => {
+    const candidates = ['google', 'github', 'apple', 'microsoft', 'discord', 'facebook', 'twitter', 'gitlab', 'linkedin', 'twitch', 'slack', 'spotify']
+    const supported: string[] = []
+    for (const provider of candidates) {
+      const toAuth = await request.get(`/api/auth/social-redirect?provider=${provider}`, { maxRedirects: 0 })
+      expect(toAuth.status()).toBe(302)
+      const atAuth = await request.get(toAuth.headers()['location'], { maxRedirects: 0 })
+      if (atAuth.status() === 302 && !atAuth.headers()['location']?.includes('error')) supported.push(provider)
+    }
+    expect(supported).toEqual(expect.arrayContaining(['google', 'github', 'apple']))
+    expect([...SIGN_IN_PROVIDERS.map((p) => p.id)].sort()).toEqual([...supported].sort())
   })
 
   test('unknown route shows 404', async ({ page }) => {

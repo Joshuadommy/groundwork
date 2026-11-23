@@ -17,6 +17,7 @@
 import type { ReactNode } from 'react'
 import { Outlet } from 'react-router-dom'
 import { AuthGate, DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
+import LoadingScreen from '../../components/LoadingScreen'
 import SignInScreen from '../../components/SignInScreen'
 import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
 import { useToast } from '@/components/ui'
@@ -31,25 +32,31 @@ export default function AppLayout() {
       <title>{APP_NAME}</title>
       {/* Groundwork is private: signed-out visitors get the sign-in screen and
           never mount the data layer (whose WebSocket requires a token). */}
-      <AuthGate fallback={<SignInScreen />}>
-        <AuthBoot>
-          {/* The app shell is rendered by (protected)/_layout.tsx, after the
-              access gate, so the waiting and welcome screens stand alone. */}
-          <Outlet />
-        </AuthBoot>
-      </AuthGate>
+      <SessionLoading>
+        <AuthGate fallback={<SignInScreen />}>
+          <AuthBoot>
+            {/* The app shell is rendered by (protected)/_layout.tsx, after the
+                access gate, so the waiting and welcome screens stand alone. */}
+            <Outlet />
+          </AuthBoot>
+        </AuthGate>
+      </SessionLoading>
     </DeepSpaceAuthProvider>
   )
 }
 
 /**
+ * The SDK's AuthGate renders nothing while the session check is in flight;
+ * show the app's loading screen instead of a blank page.
+ */
+function SessionLoading({ children }: { children: ReactNode }) {
+  const { isLoaded } = useAuthStatus()
+  return isLoaded ? <>{children}</> : <LoadingScreen />
+}
+
+/**
  * Waits for auth to resolve, then mounts the data layer. Distinct from the SDK's `AuthGate`.
- *
- * While the initial session check is in flight, renders a fixed full-viewport
- * panel in the theme background — visually identical to the pre-JS page
- * (index.html primes <html> with the same color), so a cold load shows a
- * steady theme-colored screen until the shell appears. No spinner text: the
- * check is one round-trip, and in-flow placeholders read as a layout jump.
+ * The loading screen continues in MembersOnly until the server confirms a role.
  */
 function AuthBoot({ children }: { children: ReactNode }) {
   const { isLoaded } = useAuthStatus()
@@ -60,7 +67,7 @@ function AuthBoot({ children }: { children: ReactNode }) {
   const { error, warning } = useToast()
 
   if (!isLoaded) {
-    return <div aria-busy="true" className="fixed inset-0 bg-background" />
+    return <LoadingScreen />
   }
 
   return (

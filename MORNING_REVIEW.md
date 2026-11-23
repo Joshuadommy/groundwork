@@ -13,7 +13,7 @@ Current live data: workspace "Northwind Ops" with the three sample documents (Re
 Use a desktop browser signed in as **your owner account** (the one that deploys). For steps 7 to 10 you also need **your second account** in a private/incognito window.
 
 ### 1. Sign in lands in the app
-- [ ] Open https://groundwork.app.space/ask in a private window. You should see the sign-in screen (Google and GitHub buttons, theme button top right).
+- [ ] Open https://groundwork.app.space/ask in a private window. You should see the sign-in screen (Google, Microsoft, Apple and GitHub buttons, theme button top right).
 - [ ] Sign in with your owner account. You should land on **/ask**, not a 404. (Before tonight, a fresh sign-in redirected to the removed `/home` page; fixed in D2.)
 
 ### 2. Ask a question the documents don't cover, and save it as an eval case
@@ -103,7 +103,6 @@ Use a desktop browser signed in as **your owner account** (the one that deploys)
 - The Ask page shows the latest 50 answers; there is no pagination yet.
 - PDF pages on a phone are small at fit width (zoom works).
 - Large PDFs (100+ pages) were not tested; thumbnails render lazily.
-- The prototype's Microsoft and Apple sign-in buttons are not offered (DeepSpace offers Google and GitHub here).
 - One test of mine was flaky during Phase E (its cleanup read the roster before it loaded); fixed and re-run green several times.
 
 ## Security pass

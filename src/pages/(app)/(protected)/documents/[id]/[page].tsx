@@ -11,6 +11,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from 'deepspace'
 import { I } from '../../../../../components/icons'
+import ViewerBoundary from '../../../../../components/viewer/ViewerBoundary'
 import { useDocuments, useNames } from '../../../../../hooks/useWorkspace'
 import { fetchDocumentFile } from '../../../../../lib/api'
 import { documentMeta } from '../../../../../lib/format'
@@ -152,27 +153,29 @@ export default function DocumentViewerPage() {
           Loading document…
         </div>
       ) : (
-        <Suspense
-          fallback={
-            <div className="loading-row">
-              <span className="spin spin-lg" aria-hidden="true" />
-              Loading viewer…
-            </div>
-          }
-        >
-          {doc.kind === 'pdf' ? (
-            <PdfViewer
-              blob={blob}
-              page={page}
-              pageCount={doc.pageCount}
-              citation={citation}
-              onPage={goTo}
-              onDownload={download}
-            />
-          ) : (
-            <TextViewer blob={blob} kind={doc.kind} citation={citation} />
-          )}
-        </Suspense>
+        <ViewerBoundary resetKey={id} onDownload={download}>
+          <Suspense
+            fallback={
+              <div className="loading-row">
+                <span className="spin spin-lg" aria-hidden="true" />
+                Loading viewer…
+              </div>
+            }
+          >
+            {doc.kind === 'pdf' ? (
+              <PdfViewer
+                blob={blob}
+                page={page}
+                pageCount={doc.pageCount}
+                citation={citation}
+                onPage={goTo}
+                onDownload={download}
+              />
+            ) : (
+              <TextViewer blob={blob} kind={doc.kind} citation={citation} />
+            )}
+          </Suspense>
+        </ViewerBoundary>
       )}
     </main>
   )
