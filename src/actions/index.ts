@@ -9,10 +9,11 @@ import type { ActionHandler } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { askQuestion } from './ask'
 import { deleteDocument, retryDocumentIndexing } from './documents'
-import { runEvals, saveEvalCase } from './evals'
+import { addEvalCase, runEvals, saveEvalCase } from './evals'
 import { setupWorkspace } from './setup'
 
 export const actions: Record<string, ActionHandler<Env>> = {
+  addEvalCase,
   askQuestion,
   deleteDocument,
   retryDocumentIndexing,

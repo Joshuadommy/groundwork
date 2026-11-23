@@ -17,6 +17,14 @@ export function citedPages(citations: RunOutcome['citations']): string[] {
   return [...new Set(citations.map((c) => `${c.documentId}#${c.page}`))].sort()
 }
 
+/** Cases added with "Add question" have no source answer; their sourceAnswerId is `manual:<id>`. */
+export const MANUAL_CASE_PREFIX = 'manual:'
+export const isManualCase = (sourceAnswerId: string) => sourceAnswerId.startsWith(MANUAL_CASE_PREFIX)
+
+/** Same question, ignoring case and whitespace (to avoid adding one twice). */
+export const sameQuestion = (a: string, b: string) =>
+  a.trim().replace(/\s+/g, ' ').toLowerCase() === b.trim().replace(/\s+/g, ' ').toLowerCase()
+
 /** `previous` is null for a case's first run, which is never "changed". */
 export function hasChanged(previous: RunOutcome | null, current: RunOutcome): boolean {
   if (!previous) return false

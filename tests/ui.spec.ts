@@ -224,4 +224,28 @@ test.describe('owner UI states', () => {
     expect([...seen].some((v) => v > 0 && v < 100), `progress values seen: ${[...seen].join(', ')}`).toBe(true)
     await expect(bar).toHaveCount(0)
   })
+
+  test('Evals: an Owner adds a question directly; adding it again does not duplicate it', async ({ users }) => {
+    const [owner] = await users(['GW Owner'])
+    const page = owner.page
+    await page.goto('/evals')
+    await expect(page.getByTestId('page-evals')).toBeVisible({ timeout: 20_000 })
+    const form = page.getByTestId('add-eval-case')
+    await form.getByRole('button', { name: 'Add question' }).click()
+    await expect(form.getByRole('alert')).toHaveText('Enter a question.')
+
+    const question = `UI test eval question ${Date.now()}?`
+    await page.getByLabel('Add a question').fill(question)
+    await form.getByRole('button', { name: 'Add question' }).click()
+    const row = page.getByTestId('eval-row').filter({ hasText: question })
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await expect(row).toContainText('Added by GW Owner')
+    await expect(row).toContainText('Not run yet')
+    await expect(page.getByLabel('Add a question')).toHaveValue('')
+
+    await page.getByLabel('Add a question').fill(`  ${question.toUpperCase()} `)
+    await form.getByRole('button', { name: 'Add question' }).click()
+    await expect(page.getByText('That question is already an eval case')).toBeVisible()
+    await expect(page.getByTestId('eval-row').filter({ hasText: question })).toHaveCount(1)
+  })
 })

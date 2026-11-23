@@ -3,6 +3,9 @@
  *
  *   saveEvalCase  Editors and Owners: save an answer's question as an eval
  *                 case (one per source answer; saving twice is a no-op).
+ *   addEvalCase   Editors and Owners: add a question directly, without an
+ *                 answer (sourceAnswerId `manual:<id>`; the same question
+ *                 twice returns the existing case).
  *   runEvals      Owners: re-run up to EVAL_RUN_CAP cases through the same
  *                 pipeline as askQuestion, inside this action (no job), and
  *                 record whether each outcome changed (src/lib/eval-change.ts).
@@ -14,14 +17,14 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { answerQuestion } from '../lib/answer-question'
-import { EVAL_RUN_CAP, hasChanged, pickCasesToRun, type RunOutcome } from '../lib/eval-change'
+import { EVAL_RUN_CAP, hasChanged, isManualCase, MANUAL_CASE_PREFIX, pickCasesToRun, sameQuestion, type RunOutcome } from '../lib/eval-change'
 import type { AnswerData } from '../schemas/answers-schema'
 import type { EvalCaseData, EvalRunData } from '../schemas/evals-schema'
 import { modelGenerator } from '../server/generation'
 import { knowledgeRetriever } from '../server/retrieval'
 import { withRole } from '../server/roles'
 import { EDITOR_ROLES, OWNER_ROLES } from '../roles'
-import { readyDocumentsFrom } from './ask'
+import { QUESTION_MAX_CHARS, readyDocumentsFrom } from './ask'
 
 const RUN_CONCURRENCY = 3
 
@@ -49,6 +52,25 @@ export const saveEvalCase: ActionHandler<Env> = withRole(EDITOR_ROLES, async ({ 
   return { success: true, data: { evalCaseId: created.data.recordId, alreadySaved: false } }
 })
 
+export const addEvalCase: ActionHandler<Env> = withRole(EDITOR_ROLES, async ({ userId, params, tools }) => {
+  const question = typeof params.question === 'string' ? params.question.trim() : ''
+  if (!question) return { success: false, error: 'Enter a question.' }
+  if (question.length > QUESTION_MAX_CHARS) {
+    return { success: false, error: `Questions can be at most ${QUESTION_MAX_CHARS} characters.` }
+  }
+  const existing = await tools.query<EvalCaseData>('evalCases', { limit: 1000 })
+  const dup = existing.success ? existing.data.records.find((r) => sameQuestion(r.data.question, question)) : undefined
+  if (dup) return { success: true, data: { evalCaseId: dup.recordId, alreadySaved: true } }
+  const created = await tools.create<EvalCaseData>('evalCases', {
+    question,
+    sourceAnswerId: `${MANUAL_CASE_PREFIX}${crypto.randomUUID()}`,
+    createdBy: userId,
+  })
+  if (!created.success) return created
+  console.info(`[evals] case ${created.data.recordId} added directly by ${userId}`)
+  return { success: true, data: { evalCaseId: created.data.recordId, alreadySaved: false } }
+})
+
 async function latestRuns(tools: ActionTools): Promise<Map<string, EvalRunData>> {
   const runs = await tools.query<EvalRunData>('evalRuns', { orderBy: 'runAt', orderDir: 'desc', limit: 2000 })
   const latest = new Map<string, EvalRunData>()
@@ -61,6 +83,7 @@ async function latestRuns(tools: ActionTools): Promise<Map<string, EvalRunData>>
 /** The outcome a run is compared with: the case's last run, else the answer it was saved from. */
 async function baselineFor(tools: ActionTools, c: EvalCaseData, last: EvalRunData | undefined): Promise<RunOutcome | null> {
   if (last) return { status: last.status, citations: last.citations }
+  if (isManualCase(c.sourceAnswerId)) return null
   const source = await tools.get<AnswerData>('answers', c.sourceAnswerId)
   if (!source.success) return null
   return { status: source.data.record.data.status, citations: source.data.record.data.citations }

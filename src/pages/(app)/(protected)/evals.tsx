@@ -5,7 +5,7 @@
  * pairs differs from the previous run, never just the wording.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useQuery } from 'deepspace'
 import { useToast } from '@/components/ui'
 import { I } from '../../../components/icons'
@@ -14,9 +14,9 @@ import { useAppRole } from '../../../hooks/useAppRole'
 import { useLiveQuery } from '../../../hooks/useLiveQuery'
 import { useNames } from '../../../hooks/useWorkspace'
 import { callAction } from '../../../lib/api'
-import { EVAL_RUN_CAP } from '../../../lib/eval-change'
+import { EVAL_RUN_CAP, isManualCase } from '../../../lib/eval-change'
 import { shortDate } from '../../../lib/format'
-import { isOwnerRole } from '../../../roles'
+import { canEditDocuments, isOwnerRole } from '../../../roles'
 import type { AnswerData, AnswerStatus } from '../../../schemas/answers-schema'
 import type { EvalCaseData, EvalRunData } from '../../../schemas/evals-schema'
 
@@ -25,12 +25,79 @@ function ResultPill({ status }: { status: AnswerStatus | undefined }) {
   if (status === 'partial') return <span className="pill p-partial">Partially verified</span>
   if (status === 'abstained') return <span className="pill p-none">Not found</span>
   if (status === 'error') return <span className="pill p-fail">Error</span>
-  return <span className="pill p-none">Unknown</span>
+  return <span className="pill p-index">Not run yet</span>
+}
+
+const QUESTION_MAX = 2000
+
+/** Editors and Owners add a question as an eval case directly (addEvalCase checks the role on the server). */
+function AddQuestion() {
+  const [value, setValue] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const { success } = useToast()
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const question = value.trim()
+    if (!question) return setProblem('Enter a question.')
+    if (question.length > QUESTION_MAX) return setProblem(`Questions can be at most ${QUESTION_MAX} characters.`)
+    setBusy(true)
+    setProblem(null)
+    const res = await callAction<{ alreadySaved: boolean }>('addEvalCase', { question })
+    setBusy(false)
+    if (!res.success) return setProblem(res.error)
+    setValue('')
+    success(res.data.alreadySaved ? 'That question is already an eval case' : 'Added as an eval case', 'It runs with the next re-run.')
+  }
+
+  return (
+    <form className="add-case" onSubmit={submit} noValidate data-testid="add-eval-case">
+      <div className="field">
+        <label htmlFor="evalQuestion">Add a question</label>
+        <div className="add-case-row">
+          <input
+            id="evalQuestion"
+            className="input"
+            value={value}
+            placeholder="A question your documents should answer, or shouldn't"
+            aria-invalid={problem ? true : undefined}
+            aria-describedby={problem ? 'evalQuestionError' : 'evalQuestionHelp'}
+            onChange={(e) => {
+              setValue(e.target.value)
+              if (problem) setProblem(null)
+            }}
+            disabled={busy}
+          />
+          <button className="btn btn-primary" type="submit" disabled={busy}>
+            {busy ? (
+              <>
+                <span className="spin" aria-hidden="true" />
+                Adding
+              </>
+            ) : (
+              'Add question'
+            )}
+          </button>
+        </div>
+        {problem ? (
+          <span className="field-error" id="evalQuestionError" role="alert">
+            {problem}
+          </span>
+        ) : (
+          <span className="field-help" id="evalQuestionHelp">
+            Saved without an answer; the next re-run answers it and records the result.
+          </span>
+        )}
+      </div>
+    </form>
+  )
 }
 
 export default function EvalsPage() {
   const { role } = useAppRole()
   const isOwner = isOwnerRole(role)
+  const canAdd = canEditDocuments(role)
   const names = useNames()
   const { success, error } = useToast()
   const [running, setRunning] = useState(false)
@@ -87,6 +154,7 @@ export default function EvalsPage() {
         )}
       </div>
       {!isOwner && total > 0 && <div className="locked">Only owners can re-run evals.</div>}
+      {canAdd && <AddQuestion />}
       {isOwner && total > EVAL_RUN_CAP && (
         <p className="hint" style={{ marginTop: 12 }}>
           Each run covers up to {EVAL_RUN_CAP} cases, least recently run first.
@@ -120,8 +188,9 @@ export default function EvalsPage() {
         <div className="empty" data-testid="evals-empty">
           <h3>No eval cases yet</h3>
           <p>
-            When an answer is wrong, mark it not helpful and save it as an eval case. You can re-run every case after documents
-            change.
+            Eval cases come from answers your team marks as not helpful: on <b>Ask</b>, click the thumbs-down under a wrong
+            answer, then <b>Save as eval case</b>. {canAdd ? 'You can also add a question above. ' : ''}After documents change,
+            an owner re-runs every case to see which answers improved and which changed.
           </p>
         </div>
       ) : (
@@ -144,7 +213,9 @@ export default function EvalsPage() {
                   <tr key={c.recordId} data-testid="eval-row">
                     <td>
                       <div className="strong">{c.data.question}</div>
-                      <div className="sub">Saved by {names.name(c.data.createdBy)}</div>
+                      <div className="sub">
+                        {isManualCase(c.data.sourceAnswerId) ? 'Added' : 'Saved from an answer'} by {names.name(c.data.createdBy)}
+                      </div>
                       {result && result.status !== 'abstained' && result.answerText && (
                         <details style={{ marginTop: 6 }}>
                           <summary className="sub" style={{ cursor: 'pointer' }}>

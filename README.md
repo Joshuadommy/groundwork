@@ -68,7 +68,7 @@ The highlight: the model also returns one short quote per citation; code keeps i
 | Background jobs | Indexing a document (extract pages, add to knowledge, wait until searchable) outlives the upload request |
 | Agent tools | The same operations as the server actions, role-checked, for the in-app assistant and `deepspace agent invoke` |
 
-**Left out, and why:** payments (an internal team tool has no one to charge yet); presence (cut for scope); collaborative editing / Yjs, canvas and voice (they don't serve the ask → verify → trust flow); invite records (replaced by owner approvals, because server code cannot assign a role at first sign-in, see PLAN.md SDK feedback 2).
+**Left out, and why:** payments (an internal team tool has no one to charge yet); presence / online-people avatars (deliberately left out: knowing who is online doesn't help anyone trust an answer, and the prototype's "3 online" avatars were never built, so no placeholder ships); collaborative editing / Yjs, canvas and voice (they don't serve the ask → verify → trust flow); invite records (replaced by owner approvals, because server code cannot assign a role at first sign-in, see PLAN.md SDK feedback 2).
 
 ## Run it locally
 

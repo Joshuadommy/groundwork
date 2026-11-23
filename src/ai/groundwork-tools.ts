@@ -101,11 +101,23 @@ export function buildGroundworkTools(context: AgentToolContext<Env>): ToolSet {
 
     search_passages: tool({
       description:
-        'Raw knowledge search: the passages retrieval returns for a query, with the document id and page parsed from each key.',
-      inputSchema: z.object({ query: z.string().min(1).max(500), limit: z.number().int().min(1).max(12).optional() }),
-      execute: async ({ query, limit }) => {
+        'Raw knowledge search: the passages retrieval returns for a query, with the document id and page parsed from each key. ' +
+        'For diagnosing retrieval, optionally override matchThreshold (0..1; omit for the platform default), mode, limit (up to 50) or queryRewrite.',
+      inputSchema: z.object({
+        query: z.string().min(1).max(500),
+        limit: z.number().int().min(1).max(50).optional(),
+        matchThreshold: z.number().min(0).max(1).optional(),
+        mode: z.enum(['hybrid', 'semantic', 'fulltext']).optional(),
+        queryRewrite: z.boolean().optional(),
+      }),
+      execute: async ({ query, limit, matchThreshold, mode, queryRewrite }) => {
         await need(context, TEAM_ROLES)
-        const result = await knowledge(env).search(query, { mode: 'hybrid', limit: limit ?? 5 })
+        const result = await knowledge(env).search(query, {
+          mode: mode ?? 'hybrid',
+          limit: limit ?? 5,
+          ...(matchThreshold !== undefined ? { matchThreshold } : {}),
+          ...(queryRewrite !== undefined ? { queryRewrite } : {}),
+        })
         return result.chunks.map((chunk) => ({
           chunkId: chunk.id,
           score: chunk.score,

@@ -206,6 +206,10 @@ h2.page{margin:0;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-
 .spin{width:10px;height:10px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;flex:none}
 .spin-lg{width:18px;height:18px}
 @keyframes spin{to{transform:rotate(360deg)}}
+.add-case{margin-top:24px}
+.add-case-row{display:flex;gap:10px;align-items:stretch}
+.add-case-row .input{flex:1;min-width:0}
+@media (max-width: 600px){ .add-case-row{flex-direction:column} }
 .changed{font-size:13px;font-weight:600;color:var(--amber)}
 .same{font-size:13px;color:var(--ink-3)}
 .locked{margin-top:24px;padding:14px 16px;border-radius:var(--radius-s);background:var(--surface);font-size:14px;color:var(--ink-2)}

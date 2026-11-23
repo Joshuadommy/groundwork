@@ -7,6 +7,7 @@ import { actions } from './index'
 describe('server actions registry', () => {
   it('registers every action as a function', () => {
     expect(Object.keys(actions).sort()).toEqual([
+      'addEvalCase',
       'askQuestion',
       'deleteDocument',
       'retryDocumentIndexing',
