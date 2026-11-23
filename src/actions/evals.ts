@@ -21,6 +21,7 @@ import { EVAL_RUN_CAP, hasChanged, isManualCase, MANUAL_CASE_PREFIX, pickCasesTo
 import type { AnswerData } from '../schemas/answers-schema'
 import type { EvalCaseData, EvalRunData } from '../schemas/evals-schema'
 import { modelGenerator } from '../server/generation'
+import { modelQueryExpander } from '../server/query-expansion'
 import { knowledgeRetriever } from '../server/retrieval'
 import { withRole } from '../server/roles'
 import { EDITOR_ROLES, OWNER_ROLES } from '../roles'
@@ -111,6 +112,7 @@ export async function runEvalBatch(env: Env, tools: ActionTools, onlyIds?: strin
     retrieve: knowledgeRetriever(env),
     readyDocuments: readyDocumentsFrom(tools),
     generate: modelGenerator(env),
+    expandQuery: modelQueryExpander(env),
   }
 
   let changed = 0
@@ -123,6 +125,10 @@ export async function runEvalBatch(env: Env, tools: ActionTools, onlyIds?: strin
         const baseline = await baselineFor(tools, c.data, latest.get(c.id))
         const result = await answerQuestion(c.data.question, deps)
         const isChanged = hasChanged(baseline, { status: result.status, citations: result.citations })
+        console.info(
+          `[evals] case ${c.id} status=${result.status} passages=${result.passages.length} generated=${result.generated}` +
+            (result.expandedQueries.length ? ` expanded=${JSON.stringify(result.expandedQueries)}` : ''),
+        )
         if (isChanged) changed++
         const run: EvalRunData = {
           evalCaseId: c.id,

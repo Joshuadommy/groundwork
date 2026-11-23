@@ -17,6 +17,7 @@ import { REQUEST_ID_PATTERN, type AnswerData } from '../schemas/answers-schema'
 import type { DocumentData } from '../schemas/documents-schema'
 import { knowledgeRetriever } from '../server/retrieval'
 import { ANSWER_MODEL, modelGenerator } from '../server/generation'
+import { modelQueryExpander } from '../server/query-expansion'
 import { withRole } from '../server/roles'
 import { TEAM_ROLES } from '../roles'
 
@@ -76,6 +77,7 @@ export async function runAsk(
       retrieve: knowledgeRetriever(env),
       readyDocuments: readyDocumentsFrom(tools),
       generate: modelGenerator(env),
+      expandQuery: modelQueryExpander(env),
       // Progress is best effort: a failed stage write never fails the ask.
       onStage: async (stage) => {
         await tools.update('answers', answerId, { stage }).catch(() => undefined)
@@ -92,7 +94,8 @@ export async function runAsk(
     if (!saved.success) return saved
     console.info(
       `[ask] answer=${answerId} status=${result.status} passages=${result.passages.length} ` +
-        `cited=${result.citations.length} removed=${result.removedCitations.length} generated=${result.generated} coverage=${result.coverage ?? "-"}`,
+        `cited=${result.citations.length} removed=${result.removedCitations.length} generated=${result.generated} coverage=${result.coverage ?? "-"}` +
+        (result.expandedQueries.length ? ` expanded=${JSON.stringify(result.expandedQueries)}` : ''),
     )
     return { success: true, data: { answerId, status: result.status } }
   } catch (error) {
