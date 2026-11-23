@@ -32,12 +32,12 @@ test('deployed scripts, including the PDF.js worker, are served as JavaScript', 
     const res = await request.get(`${origin}${path}`)
     expect(res.status(), path).toBe(200)
     contentTypes[path] = res.headers()['content-type'] ?? ''
-    if (path.includes('pdf.worker')) continue // 1 MB of minified worker, no chunk refs
+    if (/pdf[.-]worker/.test(path)) continue // 1 MB of minified worker, no chunk refs
     const body = await res.text()
     for (const m of body.matchAll(/assets\/[\w.-]+\.(?:m?js|cjs)/g)) queue.push(`/${m[0]}`)
   }
 
-  const worker = Object.keys(contentTypes).filter((p) => p.includes('pdf.worker'))
+  const worker = Object.keys(contentTypes).filter((p) => /pdf[.-]worker/.test(p))
   expect(worker.length, 'the PDF viewer references its worker').toBeGreaterThan(0)
   const wrong = Object.entries(contentTypes).filter(([, type]) => !/javascript/i.test(type))
   expect(wrong, 'scripts served with a non-JavaScript Content-Type').toEqual([])
