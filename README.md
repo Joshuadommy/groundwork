@@ -25,7 +25,7 @@ Every screen at desktop and phone width, light and dark: [docs/screenshots/](doc
    - **While it answers:** the question appears in the thread at once with three live steps (searching your documents, reading the most relevant passages, checking every citation). The steps follow the server's real progress: the action writes a `stage` on the pending answer as it moves from retrieval to the model to verification, and the page finds its own pending answer by a request id. The answer fades in when it's saved. If the AI call fails, nothing is saved and the question shows an inline error with **Try again**. Teammates see each other's pending questions live.
 3. **Open the source:** each citation chip opens the passage; "Open page N" opens the original document on that page with the supporting sentence highlighted.
 4. **Rate** answers 👍/👎 (with an optional note). Ratings update live for the whole team.
-5. **Save** a bad answer as an **eval case** (Editors and Owners); Owners **re-run** eval cases (up to 10 per run) and see which outcomes changed.
+5. **Save** a bad answer as an **eval case**, or type a question straight into **Add question** on the Evals page (Editors and Owners, checked on the server); Owners **re-run** eval cases (up to 10 per run) and see which outcomes changed.
 
 ## Roles and access approval
 
@@ -52,6 +52,8 @@ What it does **not** guarantee:
 - **Coverage** ("full" / "partial") is the model's own judgment from its structured output. It is shown as a note and never changes the verification status.
 
 The highlight: the model also returns one short quote per citation; code keeps it only if it occurs verbatim (ignoring whitespace and case) in the retrieved passage (`src/lib/quotes.ts`). The viewer finds that quote in the PDF's text layer and paints it with the CSS Custom Highlight API.
+
+**Retrieval and reworded questions.** Managed-knowledge search only returns hits above a relevance cutoff (about 0.4 of its 0–1 score; `matchThreshold` and `mode` did not change it, see PLAN.md SDK feedback 18), and its score rewards wording close to the document's. A question in everyday words ("Do I need to tell anyone if I'm dating a coworker?") could find nothing for a page that says "romantic relationship with a colleague", and abstained before the model. So when the question as asked retrieves nothing, a small model (Haiku, temperature 0) writes up to five policy-worded search phrases, those are searched, and the hits are merged (`src/server/query-expansion.ts`, `src/lib/answer-question.ts`). It costs one small extra model call and about a second, only on questions that would otherwise be "Not in your documents"; the answer still comes only from retrieved passages and citations are still verified in code.
 
 **Per-page indexing.** Managed knowledge returns no page numbers, so each page is its own knowledge item with the page in its key (`docs/<documentId>/p0002.txt`), parsed back at answer time (`src/lib/passage-key.ts`). PDFs are split with `unpdf` inside the Worker by a background job.
 

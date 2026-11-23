@@ -78,7 +78,11 @@ Use a desktop browser signed in as **your owner account** (the one that deploys)
 - [ ] **Loading and reconnecting:** reload: the green mark breathes over "Loading your workspace". Turn Wi-Fi off for ~5 seconds: a dark pill "Reconnecting… your work is safe" appears at the top and the page stays as it was; turn it back on: the pill goes and a "Reconnected" toast appears.
 - [ ] **Links, favicon, titles:** no link is underlined anywhere; document names are dark and turn green on hover. The browser tab shows the green Groundwork mark and titles like "Ask · Groundwork", "Team · Groundwork", or a document's name. On iOS, Add to Home Screen uses the same mark.
 
-### 14. Read the code that carries the trust claim
+### 14. Retrieval fix and Evals (Nov 23, evening)
+- [ ] On **Ask**, ask `Do I need to tell anyone if I'm dating a coworker?` and `What's the maximum gift I can give someone I manage?`: both should now come back **Verified**, citing the Workplace Relationships Policy pages 3 and 4. `What's the dress code?` should still say it isn't in your documents.
+- [ ] On **Evals**, the four cases show before → after (dating and gift **Changed** to Verified). Type a question into **Add question**: it appears with "Not run yet". Signed in as a Viewer, the box isn't there (and the server refuses it).
+
+### 15. Read the code that carries the trust claim
 - [ ] `src/lib/verify-citations.ts` is unchanged since Phase C. `src/lib/quotes.ts` and the coverage field run after it and never change the status.
 - [ ] Run `npx vitest run` (76 tests) and, with `OWNER_USER_ID` set to GW Owner in `.dev.vars`, `npx playwright test -c tests/playwright.config.ts` (27 pass with documents uploaded locally; 3 skipped: two need `GW_LIVE_AI=1`, one needs `GW_LIVE_URL`).
 

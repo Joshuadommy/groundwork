@@ -23,4 +23,4 @@ Claude Code planned against the DeepSpace docs, ran a timeboxed spike proving pe
 No semantic support check; uncited sentences aren't flagged; no per-user rate limit on questions; the Ask page shows only the latest 50 answers; "Partially verified" has only been exercised by unit tests.
 
 ## SDK feedback
-Seventeen findings with workarounds are in [PLAN.md § DeepSpace SDK feedback](PLAN.md#deepspace-sdk-feedback), notably: role helpers that report custom roles as `viewer`, no server-side role assignment, knowledge search without page metadata, and `setRole` with no acknowledgement.
+Eighteen findings with workarounds are in [PLAN.md § DeepSpace SDK feedback](PLAN.md#deepspace-sdk-feedback), notably: role helpers that report custom roles as `viewer`, no server-side role assignment, knowledge search without page metadata, and `setRole` with no acknowledgement.
