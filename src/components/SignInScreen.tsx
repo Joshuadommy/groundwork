@@ -7,11 +7,13 @@
 
 import { useState } from 'react'
 import { SIGN_IN_PROVIDERS, signInUrl, type SignInProvider } from '../lib/sign-in-providers'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { I, Logo } from './icons'
 import { ThemeToggle } from './ThemeToggle'
 
 export default function SignInScreen() {
   const [pending, setPending] = useState<string | null>(null)
+  usePageTitle('Sign in')
 
   function start(provider: SignInProvider) {
     setPending(provider)

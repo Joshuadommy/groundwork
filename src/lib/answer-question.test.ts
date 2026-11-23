@@ -200,3 +200,38 @@ describe('answerQuestion quotes', () => {
     expect(result.citations[1].quote).toBeUndefined()
   })
 })
+
+describe('answerQuestion progress', () => {
+  it('reports reading before the model is called and checking after it answers', async () => {
+    const events: string[] = []
+    const { d } = deps([chunk('c1', 'remote', 2, 0.9)], () => {
+      events.push('generate')
+      return { answer: 'Three days [S1].', citations: ['S1'], answerable: true }
+    })
+    d.onStage = (stage) => {
+      events.push(stage)
+    }
+    await answerQuestion('How many remote days?', d)
+    expect(events).toEqual(['reading', 'generate', 'checking'])
+  })
+
+  it('reports no reading or checking when nothing relevant was retrieved', async () => {
+    const onStage = vi.fn()
+    const { d } = deps([], { answer: '', citations: [], answerable: false })
+    d.onStage = onStage
+    await answerQuestion('Parental leave?', d)
+    expect(onStage).not.toHaveBeenCalled()
+  })
+
+  it('stops at reading when generation fails', async () => {
+    const events: string[] = []
+    const { d } = deps([chunk('c1', 'remote', 2, 0.9)], () => {
+      throw new Error('model down')
+    })
+    d.onStage = (stage) => {
+      events.push(stage)
+    }
+    await expect(answerQuestion('Q?', d)).rejects.toThrow('model down')
+    expect(events).toEqual(['reading'])
+  })
+})

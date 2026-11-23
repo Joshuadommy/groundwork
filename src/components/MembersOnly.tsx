@@ -13,6 +13,7 @@ import type { ReactNode } from 'react'
 import { signOut, useUser } from 'deepspace'
 import { useToast } from '@/components/ui'
 import { useAppRole } from '../hooks/useAppRole'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { useWorkspace } from '../hooks/useWorkspace'
 import { Logo } from './icons'
 import { ThemeToggle } from './ThemeToggle'
@@ -38,6 +39,7 @@ function WorkspaceGate({ isOwner, children }: { isOwner: boolean; children: Reac
 function WaitingForAccess() {
   const { user } = useUser()
   const { success, error } = useToast()
+  usePageTitle('Waiting for access')
   const email = user?.email ?? ''
 
   async function copyEmail() {

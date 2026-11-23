@@ -21,15 +21,13 @@ import LoadingScreen from '../../components/LoadingScreen'
 import SignInScreen from '../../components/SignInScreen'
 import { RecordProvider, RecordScope, AgentTools } from 'deepspace'
 import { useToast } from '@/components/ui'
-import { APP_NAME, SCOPE_ID } from '../../constants'
+import { SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
 
 export default function AppLayout() {
   return (
     <DeepSpaceAuthProvider>
-      {/* The prerendered landing owns the document <title> and React drops it
-          when <Seo> unmounts, so every route without <Seo> sets its own. */}
-      <title>{APP_NAME}</title>
+      {/* Each screen sets its own title with usePageTitle ("Ask · Groundwork"). */}
       {/* Groundwork is private: signed-out visitors get the sign-in screen and
           never mount the data layer (whose WebSocket requires a token). */}
       <SessionLoading>

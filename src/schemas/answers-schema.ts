@@ -12,6 +12,13 @@ export type AnswerStatus = (typeof ANSWER_STATUSES)[number]
 export const ANSWER_COVERAGES = ['full', 'partial'] as const
 export type AnswerCoverage = (typeof ANSWER_COVERAGES)[number]
 
+/** Where a pending answer is in the pipeline (drives the live steps on the Ask page). */
+export const ANSWER_STAGES = ['searching', 'reading', 'checking'] as const
+export type AnswerStage = (typeof ANSWER_STAGES)[number]
+
+/** A client-chosen id for one ask, so the asker's page can find its pending answer. */
+export const REQUEST_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/
+
 /** A citation that survived verification, snapshotted at answer time. */
 export type Citation = {
   /** The request-local passage label the model cited, e.g. "S2". */
@@ -38,6 +45,10 @@ export type AnswerData = {
   askedBy: string
   model?: string
   error?: string
+  /** Set while pending. */
+  stage?: AnswerStage
+  /** The asker's client request id (REQUEST_ID_PATTERN), when asked from the Ask page. */
+  requestId?: string
 }
 
 /** Written only by the askQuestion action. */
@@ -53,6 +64,8 @@ export const answersSchema: CollectionSchema = {
     { name: 'askedBy', storage: 'text', interpretation: 'plain' },
     { name: 'model', storage: 'text', interpretation: 'plain' },
     { name: 'error', storage: 'text', interpretation: 'plain' },
+    { name: 'stage', storage: 'text', interpretation: { kind: 'select', options: [...ANSWER_STAGES] } },
+    { name: 'requestId', storage: 'text', interpretation: 'plain', maxLength: 64 },
   ],
   permissions: teamReadServerWrite,
 }

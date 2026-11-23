@@ -9,7 +9,9 @@ import { useMemo, useState } from 'react'
 import { useQuery } from 'deepspace'
 import { useToast } from '@/components/ui'
 import { I } from '../../../components/icons'
+import { SkeletonRows } from '../../../components/SkeletonRows'
 import { useAppRole } from '../../../hooks/useAppRole'
+import { useLiveQuery } from '../../../hooks/useLiveQuery'
 import { useNames } from '../../../hooks/useWorkspace'
 import { callAction } from '../../../lib/api'
 import { EVAL_RUN_CAP } from '../../../lib/eval-change'
@@ -32,7 +34,7 @@ export default function EvalsPage() {
   const names = useNames()
   const { success, error } = useToast()
   const [running, setRunning] = useState(false)
-  const { records: cases, status } = useQuery<EvalCaseData>('evalCases', { orderBy: 'createdAt', orderDir: 'desc', limit: 1000 })
+  const { records: cases, status } = useLiveQuery<EvalCaseData>('evalCases', { orderBy: 'createdAt', orderDir: 'desc', limit: 1000 })
   const { records: runs } = useQuery<EvalRunData>('evalRuns', { orderBy: 'runAt', orderDir: 'desc', limit: 2000 })
   const { records: answers } = useQuery<AnswerData>('answers', { orderBy: 'createdAt', orderDir: 'desc', limit: 500 })
 
@@ -92,9 +94,20 @@ export default function EvalsPage() {
       )}
 
       {status === 'loading' ? (
-        <div className="loading-row">
-          <span className="spin spin-lg" aria-hidden="true" />
-          Loading eval cases…
+        <div className="table-wrap">
+          <table className="table" aria-busy="true" aria-label="Loading eval cases">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Latest result</th>
+                <th className="hide-sm">Last run</th>
+                <th>Since last run</th>
+              </tr>
+            </thead>
+            <tbody>
+              <SkeletonRows cols={4} />
+            </tbody>
+          </table>
         </div>
       ) : status === 'error' ? (
         <div className="banner" role="alert">

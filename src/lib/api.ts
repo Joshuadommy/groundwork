@@ -30,19 +30,49 @@ export async function callAction<T = unknown>(name: string, params: Record<strin
   }
 }
 
-export async function uploadDocument(file: File, title?: string): Promise<ActionResponse<{ documentId: string }>> {
+/**
+ * Upload a document. XMLHttpRequest rather than fetch because only XHR reports
+ * upload progress (`onProgress` gets 0..1 from the browser's real progress
+ * events). Resolves with the route's JSON body, or an error message.
+ */
+export async function uploadDocument(
+  file: File,
+  options: { title?: string; onProgress?: (fraction: number) => void } = {},
+): Promise<ActionResponse<{ documentId: string }>> {
   const form = new FormData()
   form.append('file', file)
-  if (title) form.append('title', title)
+  if (options.title) form.append('title', options.title)
+  let headers: Record<string, string>
   try {
-    const res = await fetch('/api/documents', { method: 'POST', headers: await authHeaders(), body: form })
-    const body = (await res.json().catch(() => null)) as ActionResponse<{ documentId: string }> | null
-    if (body && !body.success) return body
-    if (!res.ok || !body) return { success: false, error: `Upload failed (${res.status}). Try again.` }
-    return body
+    headers = await authHeaders()
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : 'Network error. Try again.' }
+    return { success: false, error: error instanceof Error ? error.message : 'Sign in again and retry.' }
   }
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/documents')
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v)
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) options.onProgress?.(e.loaded / e.total)
+    }
+    xhr.onload = () => {
+      let body: ActionResponse<{ documentId: string }> | null = null
+      try {
+        body = JSON.parse(xhr.responseText) as ActionResponse<{ documentId: string }>
+      } catch {
+        body = null
+      }
+      if (body && !body.success) return resolve(body)
+      if (xhr.status < 200 || xhr.status >= 300 || !body) {
+        return resolve({ success: false, error: `Upload failed (${xhr.status}). Try again.` })
+      }
+      options.onProgress?.(1)
+      resolve(body)
+    }
+    xhr.onerror = () => resolve({ success: false, error: 'Network error. Check your connection and try again.' })
+    xhr.onabort = () => resolve({ success: false, error: 'Upload cancelled.' })
+    xhr.send(form)
+  })
 }
 
 /** The original file, fetched through the role-checked route. */

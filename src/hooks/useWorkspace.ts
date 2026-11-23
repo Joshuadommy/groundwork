@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
-import { useQuery, useUsers } from 'deepspace'
+import { useLiveQuery } from './useLiveQuery'
+import { useUsers } from 'deepspace'
 import type { DocumentData } from '../schemas/documents-schema'
 
 export type WorkspaceData = { slot: string; name: string; setupBy: string }
 
 /** The single workspace row; `exists` is null while loading. */
 export function useWorkspace() {
-  const { records, status } = useQuery<WorkspaceData>('workspace', { where: { slot: 'main' }, limit: 1 })
+  const { records, status } = useLiveQuery<WorkspaceData>('workspace', { where: { slot: 'main' }, limit: 1 })
   const ws = records[0]?.data
   return {
     name: ws?.name ?? 'Groundwork',
@@ -17,7 +18,7 @@ export function useWorkspace() {
 
 /** All documents, newest first (live). */
 export function useDocuments() {
-  return useQuery<DocumentData>('documents', { orderBy: 'createdAt', orderDir: 'desc', limit: 500 })
+  return useLiveQuery<DocumentData>('documents', { orderBy: 'createdAt', orderDir: 'desc', limit: 500 })
 }
 
 /** Display names for user ids, from the SDK roster (names and roles; emails only for owners). */

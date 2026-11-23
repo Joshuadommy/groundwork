@@ -2,12 +2,14 @@
 
 import { useState, type FormEvent } from 'react'
 import { useToast } from '@/components/ui'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { callAction } from '../lib/api'
 import { Logo } from './icons'
 import { ThemeToggle } from './ThemeToggle'
 
 export default function WelcomeScreen() {
   const [name, setName] = useState('Northwind Ops')
+  usePageTitle('Welcome')
   const [samples, setSamples] = useState(true)
   const [invalid, setInvalid] = useState(false)
   const [busy, setBusy] = useState(false)

@@ -12,7 +12,7 @@ Built on the [DeepSpace](https://docs.deep.space) SDK (Cloudflare Workers, React
 | **Documents** | **Team access approvals** |
 | ![Documents](docs/screenshots/documents-desktop-light.png) | ![Team](docs/screenshots/team-desktop-light.png) |
 
-Every screen at desktop and phone width, light and dark: [docs/screenshots/](docs/screenshots/) (sign-in, waiting for access, welcome, Ask, source panel, Documents, upload dialog, PDF viewer, Markdown viewer, Evals, Team, 404).
+Every screen at desktop and phone width, light and dark: [docs/screenshots/](docs/screenshots/) (sign-in, loading, waiting for access, welcome, Ask, Ask with live steps, Ask error, reconnecting, source panel, Documents, documents loading, upload dialog, drag-over, upload progress, PDF viewer, Markdown viewer, Evals, Team, role dropdown, 404).
 
 ## What it does
 
@@ -22,6 +22,7 @@ Every screen at desktop and phone width, light and dark: [docs/screenshots/](doc
    - some invented → they are removed and the answer is **Partially verified**
    - none valid, or nothing relevant retrieved → **"I couldn't find this in your documents"**
    - if the documents answer only part of the question, a note says so: *"Answers part of your question; your documents don't cover the rest."*
+   - **While it answers:** the question appears in the thread at once with three live steps (searching your documents, reading the most relevant passages, checking every citation). The steps follow the server's real progress: the action writes a `stage` on the pending answer as it moves from retrieval to the model to verification, and the page finds its own pending answer by a request id. The answer fades in when it's saved. If the AI call fails, nothing is saved and the question shows an inline error with **Try again**. Teammates see each other's pending questions live.
 3. **Open the source:** each citation chip opens the passage; "Open page N" opens the original document on that page with the supporting sentence highlighted.
 4. **Rate** answers 👍/👎 (with an optional note). Ratings update live for the whole team.
 5. **Save** a bad answer as an **eval case** (Editors and Owners); Owners **re-run** eval cases (up to 10 per run) and see which outcomes changed.

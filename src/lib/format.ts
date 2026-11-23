@@ -19,3 +19,27 @@ export function shortDate(iso: string | undefined): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
+
+/** "just now", "10 minutes ago", "2 days ago"; "" when the date is missing or invalid. */
+export function timeAgo(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return ''
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return ''
+  const s = Math.max(0, Math.round((now - t) / 1000))
+  if (s < 60) return 'just now'
+  const units: [number, string][] = [
+    [60 * 60 * 24 * 365, 'year'],
+    [60 * 60 * 24 * 30, 'month'],
+    [60 * 60 * 24 * 7, 'week'],
+    [60 * 60 * 24, 'day'],
+    [60 * 60, 'hour'],
+    [60, 'minute'],
+  ]
+  for (const [size, name] of units) {
+    if (s >= size) {
+      const n = Math.floor(s / size)
+      return `${n} ${name}${n === 1 ? '' : 's'} ago`
+    }
+  }
+  return 'just now'
+}

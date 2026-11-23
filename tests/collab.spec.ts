@@ -176,6 +176,36 @@ test.describe('access approval, live feedback and server-enforced roles', () => 
       })
       expect(upload.status()).toBe(403)
 
+      // Role dropdown: the custom listbox, by keyboard (no native <select>).
+      await expect(owner.page.locator('select')).toHaveCount(0)
+      const memberRow = owner.page.locator(`[data-testid=member-row][data-email="${guest.email}"]`)
+      const roleBtn = memberRow.getByRole('button', { name: /^Role for / })
+      await expect(roleBtn).toHaveText('Viewer')
+      await roleBtn.focus()
+      await owner.page.keyboard.press('ArrowDown')
+      const list = owner.page.getByRole('listbox')
+      await expect(list.getByRole('option')).toHaveText([/^Viewer/, /^Editor/, /^Owner/])
+      await expect(list.getByRole('option', { selected: true })).toContainText('Viewer')
+      await expect(list).toContainText('Also uploads and deletes documents and saves eval cases.')
+      await owner.page.keyboard.press('Escape')
+      await expect(list).toHaveCount(0)
+      await expect(roleBtn).toBeFocused()
+      await expect(roleBtn).toHaveText('Viewer')
+      // Enter opens, ArrowDown moves to Editor, Enter chooses; focus returns to the button.
+      await owner.page.keyboard.press('Enter')
+      await owner.page.keyboard.press('ArrowDown')
+      await owner.page.keyboard.press('Enter')
+      await expect(roleBtn).toHaveText('Editor', { timeout: 10_000 })
+      await expect(roleBtn).toBeFocused()
+      // The change is real: the guest's tab now offers uploading.
+      await guest.page.goto('/documents')
+      await expect(guest.page.getByTestId('open-upload')).toBeVisible({ timeout: 20_000 })
+      // Back to Viewer with the mouse.
+      await roleBtn.click()
+      await owner.page.getByRole('option', { name: /^Viewer/ }).click()
+      await expect(roleBtn).toHaveText('Viewer', { timeout: 10_000 })
+      await expect(guest.page.getByTestId('open-upload')).toHaveCount(0, { timeout: 20_000 })
+
       // Live feedback across two windows (needs at least one finished answer locally).
       await owner.page.goto('/ask')
       const ownerFirst = owner.page.locator('[data-testid=answer]:not([data-status=pending]):not([data-status=error])').first()

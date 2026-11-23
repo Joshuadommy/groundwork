@@ -46,6 +46,13 @@ export interface AnswerDeps {
   /** Documents that are currently `ready`, by record id. */
   readyDocuments: (ids: string[]) => Promise<Map<string, ReadyDocument>>
   generate: (question: string, passages: LabeledPassage[]) => Promise<GeneratedAnswer>
+  /**
+   * Progress, for the live steps on the Ask page: "reading" once passages are
+   * retrieved and the model starts reading them, "checking" once it has
+   * answered and citations are being verified. Not called when nothing
+   * relevant was retrieved (there is nothing to read).
+   */
+  onStage?: (stage: 'reading' | 'checking') => Promise<void> | void
 }
 
 export interface AnswerResult extends VerifiedAnswer {
@@ -101,7 +108,9 @@ export async function answerQuestion(question: string, deps: AnswerDeps): Promis
       coverage: null,
     }
   }
+  await deps.onStage?.('reading')
   const model = await deps.generate(question, passages)
+  await deps.onStage?.('checking')
   const verified = verifyCitations(model, passages)
   return {
     ...verified,

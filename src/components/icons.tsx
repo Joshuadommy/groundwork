@@ -11,6 +11,21 @@ export const I: Record<string, ReactElement> = {
       <path d="M2 12.5h12M4 9.5h8M6 6.5h4M8 2v4.5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   ),
+  chev: (
+    <svg width="16" height="16" viewBox="0 0 16 16" {...s}>
+      <path d="M4 6l4 4 4-4" strokeWidth="1.6" {...stroke} />
+    </svg>
+  ),
+  tick: (
+    <svg width="16" height="16" viewBox="0 0 16 16" {...s}>
+      <path d="M3.5 8.5l3 3 6-7" strokeWidth="1.8" {...stroke} />
+    </svg>
+  ),
+  send: (
+    <svg width="18" height="18" viewBox="0 0 18 18" {...s}>
+      <path d="M9 14.5v-11M4.5 8L9 3.5 13.5 8" strokeWidth="1.9" {...stroke} />
+    </svg>
+  ),
   ask: (
     <svg width="20" height="20" viewBox="0 0 20 20" {...s}>
       <path d="M4 5.5h12M4 10h8M4 14.5h5" strokeWidth="1.6" {...stroke} />

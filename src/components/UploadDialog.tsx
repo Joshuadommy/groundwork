@@ -32,6 +32,10 @@ export function UploadDialog({
   const [file, setFile] = useState<File | null>(null)
   const [over, setOver] = useState(false)
   const [busy, setBusy] = useState(false)
+  /** Upload progress 0..100 from the browser's progress events, or null before sending. */
+  const [progress, setProgress] = useState<number | null>(null)
+  /** dragenter/dragleave also fire for child elements; count to know when the pointer really left. */
+  const dragDepth = useRef(0)
   const [serverError, setServerError] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const problem = file ? validateFile(file) : null
@@ -45,6 +49,7 @@ export function UploadDialog({
     if (busy) return
     setFile(null)
     setServerError(null)
+    setProgress(null)
     onClose()
   }
 
@@ -52,21 +57,40 @@ export function UploadDialog({
     if (!file || problem) return
     setBusy(true)
     setServerError(null)
-    const res = await uploadDocument(file)
+    setProgress(0)
+    const res = await uploadDocument(file, { onProgress: (f) => setProgress(Math.round(f * 100)) })
     setBusy(false)
     if (!res.success) {
+      setProgress(null)
       setServerError(res.error)
       return
     }
+    setProgress(100)
+    // Let the finished bar register before the dialog closes.
+    await new Promise((r) => setTimeout(r, 400))
     onUploaded(res.data.documentId, file.name)
     setFile(null)
+    setProgress(null)
     onClose()
+  }
+
+  function onDragEnter(e: DragEvent) {
+    e.preventDefault()
+    if (busy) return
+    dragDepth.current += 1
+    setOver(true)
+  }
+
+  function onDragLeave() {
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setOver(false)
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault()
+    dragDepth.current = 0
     setOver(false)
-    pick(e.dataTransfer.files[0])
+    if (!busy) pick(e.dataTransfer.files[0])
   }
 
   const kind = file ? kindFromFilename(file.name) : null
@@ -75,12 +99,11 @@ export function UploadDialog({
       <h2 id="upload-title">Upload a document</h2>
       <p>PDF, Markdown, or plain text, up to 20 MB. It&apos;s indexed automatically and can be searched in about a minute or two.</p>
       <div
-        className={`dropzone${over ? ' over' : ''}`}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setOver(true)
-        }}
-        onDragLeave={() => setOver(false)}
+        className={`dropzone${over ? ' drag' : ''}`}
+        data-testid="dropzone"
+        onDragEnter={onDragEnter}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={onDragLeave}
         onDrop={onDrop}
       >
         {I.doc}
@@ -112,8 +135,26 @@ export function UploadDialog({
               </div>
             )}
           </div>
-          {!problem && <span className="pill p-ready">Ready to upload</span>}
+          {!problem && progress === null && <span className="pill p-ready">Ready to upload</span>}
         </div>
+      )}
+      {progress !== null && (
+        <>
+          <div
+            className="progressbar"
+            role="progressbar"
+            aria-label="Upload progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            data-testid="upload-progress"
+          >
+            <i style={{ width: `${progress}%` }} />
+          </div>
+          <div className="hint" style={{ marginTop: 6 }} aria-live="polite">
+            {progress < 100 ? `Uploading ${progress}%` : 'Uploaded. Indexing will continue in the background.'}
+          </div>
+        </>
       )}
       {serverError && (
         <div className="banner" role="alert" style={{ marginTop: 14 }}>
@@ -129,7 +170,14 @@ export function UploadDialog({
           Cancel
         </button>
         <button className="btn btn-primary" onClick={() => void upload()} disabled={!file || !!problem || busy} data-testid="upload-submit">
-          {busy ? 'Uploading…' : 'Upload'}
+          {busy ? (
+            <>
+              <span className="spin" aria-hidden="true" />
+              Uploading
+            </>
+          ) : (
+            'Upload'
+          )}
         </button>
       </div>
     </Dialog>

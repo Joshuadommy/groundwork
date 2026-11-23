@@ -11,6 +11,7 @@ import type { RecordData } from 'deepspace'
 import { useToast } from '@/components/ui'
 import { ConfirmDialog } from '../../../../components/Dialog'
 import { I } from '../../../../components/icons'
+import { SkeletonRows } from '../../../../components/SkeletonRows'
 import { UploadDialog } from '../../../../components/UploadDialog'
 import { useAppRole } from '../../../../hooks/useAppRole'
 import { useDocuments, useNames } from '../../../../hooks/useWorkspace'
@@ -96,9 +97,22 @@ export default function DocumentsPage() {
       )}
 
       {status === 'loading' ? (
-        <div className="loading-row">
-          <span className="spin spin-lg" aria-hidden="true" />
-          Loading documents…
+        <div className="table-wrap">
+          <table className="table" aria-busy="true" aria-label="Loading documents">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th className="hide-sm">Uploaded by</th>
+                <th>Status</th>
+                <th>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <SkeletonRows cols={4} />
+            </tbody>
+          </table>
         </div>
       ) : status === 'error' ? (
         <div className="banner" role="alert">
@@ -132,7 +146,13 @@ export default function DocumentsPage() {
                   <tr key={r.recordId} data-testid="document-row" data-status={d.status}>
                     <td>
                       <div className="strong">
-                        {d.status === 'ready' ? <Link to={`/documents/${r.recordId}/1`}>{d.title}</Link> : d.title}
+                        {d.status === 'ready' ? (
+                          <Link className="doc-link" to={`/documents/${r.recordId}/1`}>
+                            {d.title}
+                          </Link>
+                        ) : (
+                          d.title
+                        )}
                       </div>
                       <div className="sub">
                         {documentMeta(d)}

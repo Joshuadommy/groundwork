@@ -108,6 +108,7 @@ export function AnswerCard({
   onCite,
   onRetry,
   footer,
+  fresh,
 }: {
   record: RecordData<AnswerData>
   askedBy: string
@@ -115,12 +116,14 @@ export function AnswerCard({
   onCite: (citation: Citation) => void
   onRetry: (question: string) => void
   footer?: ReactNode
+  /** Fade in: the answer just arrived on this page. */
+  fresh?: boolean
 }) {
   const a = record.data
   const id = record.recordId
   const when = new Date(record.createdAt)
   return (
-    <article aria-labelledby={`q-${id}`} data-testid="answer" data-status={a.status}>
+    <article aria-labelledby={`q-${id}`} data-testid="answer" data-status={a.status} className={fresh ? 'reveal' : undefined}>
       <h3 className="q" id={`q-${id}`}>
         {a.question}
       </h3>
@@ -128,17 +131,19 @@ export function AnswerCard({
         Asked by {askedBy} ·{' '}
         <time dateTime={record.createdAt}>{when.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>
       </div>
-      {a.status === 'pending' ? (
-        <Pending />
-      ) : a.status === 'error' ? (
-        <div className="banner" role="alert">
+      {a.status === 'pending' || a.status === 'error' ? (
+        // Pending answers render as PendingCard on the Ask page; this covers a
+        // stuck pending record and error records saved before failures were removed.
+        <div className="status st-error" role="alert">
           {I.warn}
           <div>
-            <b>Groundwork couldn&apos;t reach the AI service</b>
-            {a.error || 'This question wasn’t answered.'}{' '}
-            <button className="link-btn" onClick={() => onRetry(a.question)}>
-              Try again
-            </button>
+            <b>Couldn&apos;t answer this question</b>
+            <span>
+              {a.status === 'pending' ? 'This question didn’t finish.' : a.error || 'The AI service didn’t respond.'}{' '}
+              <button className="link-btn" onClick={() => onRetry(a.question)}>
+                Try again
+              </button>
+            </span>
           </div>
         </div>
       ) : (
@@ -177,20 +182,5 @@ export function AnswerCard({
         </>
       )}
     </article>
-  )
-}
-
-function Pending() {
-  return (
-    <div className="progress" aria-live="polite" data-testid="answer-pending">
-      <span className="active">
-        <i className="dot" />
-        Searching your documents
-      </span>
-      <span className="active">
-        <i className="dot" />
-        Checking citations
-      </span>
-    </div>
   )
 }

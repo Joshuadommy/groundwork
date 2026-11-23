@@ -14,13 +14,23 @@ import { useUser, useUsers, type RoomUser } from 'deepspace'
 import { useToast } from '@/components/ui'
 import { ConfirmDialog } from '../../../components/Dialog'
 import { I } from '../../../components/icons'
+import { Listbox, type ListboxOption } from '../../../components/Listbox'
+import { SkeletonRows } from '../../../components/SkeletonRows'
 import { useAppRole } from '../../../hooks/useAppRole'
 import { avatarColor, initials } from '../../../hooks/useWorkspace'
+import { timeAgo } from '../../../lib/format'
 import { isOwnerRole, ROLE_LABELS, toAppRole, type AppRole } from '../../../roles'
 
 const ASSIGNABLE: AppRole[] = ['admin', 'editor', 'member']
 
-function Who({ u, you }: { u: RoomUser; you: boolean }) {
+/** Role choices on the Team page, as in the prototype (Viewer first). */
+const ROLE_OPTIONS: ListboxOption<AppRole>[] = [
+  { value: 'member', label: ROLE_LABELS.member, description: 'Can ask questions, open sources, and give feedback.' },
+  { value: 'editor', label: ROLE_LABELS.editor, description: 'Also uploads and deletes documents and saves eval cases.' },
+  { value: 'admin', label: ROLE_LABELS.admin, description: 'Also manages the team and re-runs evals.' },
+]
+
+function Who({ u, you, detail }: { u: RoomUser; you: boolean; detail?: string }) {
   return (
     <div className="who">
       <span className="av av-lg" style={{ background: avatarColor(u.id) }}>
@@ -31,7 +41,7 @@ function Who({ u, you }: { u: RoomUser; you: boolean }) {
           {u.name || u.email || 'Unnamed'}
           {you && <span className="sub"> (you)</span>}
         </div>
-        {u.email && <div className="sub">{u.email}</div>}
+        {(u.email || detail) && <div className="sub">{[u.email, detail].filter(Boolean).join(', ')}</div>}
       </div>
     </div>
   )
@@ -69,124 +79,88 @@ export default function TeamPage() {
       </p>
       {!owner && <div className="locked">Only owners can approve people or change roles.</div>}
 
-      {!usersLoaded ? (
-        <div className="loading-row">
-          <span className="spin spin-lg" aria-hidden="true" />
-          Loading team…
-        </div>
-      ) : (
-        <>
-          {owner && (
-            <section aria-labelledby="waiting-title" data-testid="waiting-list">
-              <h3 className="section-title" id="waiting-title">
-                Waiting for access
-              </h3>
-              {waiting.length === 0 ? (
-                <div className="empty" style={{ marginTop: 12 }}>
-                  <h3>Nobody is waiting</h3>
-                  <p>When someone signs in to Groundwork, they appear here until you approve them.</p>
+      {owner && usersLoaded && waiting.length > 0 && (
+        <section aria-labelledby="waiting-title" data-testid="waiting-list">
+          <h3 className="section-title" id="waiting-title" style={{ marginTop: 32 }}>
+            Waiting for access
+          </h3>
+          <p className="hint" style={{ margin: '4px 0 0' }}>
+            These people signed in but can&apos;t see anything yet.
+          </p>
+          {waiting.map((u) => {
+            const since = timeAgo(u.createdAt)
+            return (
+              <div key={u.id} className="waiting-card" data-testid="waiting-row" data-email={u.email}>
+                <Who u={u} you={u.id === me?.id} detail={since ? `signed in ${since}` : undefined} />
+                <div className="row">
+                  <button className="btn btn-ghost" onClick={() => change(u, 'member', `${u.name || u.email} can now use Groundwork as viewer`)}>
+                    Approve as Viewer
+                  </button>
+                  <button className="btn btn-primary" onClick={() => change(u, 'editor', `${u.name || u.email} can now use Groundwork as editor`)}>
+                    Approve as Editor
+                  </button>
                 </div>
-              ) : (
-                <div className="table-wrap" style={{ marginTop: 12 }}>
-                  <table className="table">
-                    <tbody>
-                      {waiting.map((u) => (
-                        <tr key={u.id} data-testid="waiting-row" data-email={u.email}>
-                          <td>
-                            <Who u={u} you={u.id === me?.id} />
-                          </td>
-                          <td>
-                            <div className="actions">
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => change(u, 'member', `${u.name || u.email} can now ask questions`)}
-                              >
-                                Approve as Viewer
-                              </button>
-                              <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => change(u, 'editor', `${u.name || u.email} is now an editor`)}
-                              >
-                                Approve as Editor
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          )}
-
-          <section aria-labelledby="members-title">
-            <h3 className="section-title" id="members-title">
-              Members
-            </h3>
-            <div className="table-wrap" style={{ marginTop: 12 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Member</th>
-                    <th>Role</th>
-                    <th>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map((u) => {
-                    const you = u.id === me?.id
-                    const r = toAppRole(u.role)
-                    return (
-                      <tr key={u.id} data-testid="member-row" data-email={u.email}>
-                        <td>
-                          <Who u={u} you={you} />
-                        </td>
-                        <td>
-                          {owner && !you ? (
-                            <>
-                              <label className="sr-only" htmlFor={`role-${u.id}`}>
-                                Role for {u.name || u.email}
-                              </label>
-                              <select
-                                className="input"
-                                id={`role-${u.id}`}
-                                value={r}
-                                style={{ width: 140, minHeight: 40 }}
-                                onChange={(e) => {
-                                  const next = e.target.value as AppRole
-                                  change(u, next, `${u.name || u.email} is now ${ROLE_LABELS[next].toLowerCase()}`)
-                                }}
-                              >
-                                {ASSIGNABLE.map((o) => (
-                                  <option key={o} value={o}>
-                                    {ROLE_LABELS[o]}
-                                  </option>
-                                ))}
-                              </select>
-                            </>
-                          ) : (
-                            <span>{ROLE_LABELS[r]}</span>
-                          )}
-                        </td>
-                        <td>
-                          {owner && !you && (
-                            <button className="icon-only" aria-label={`Remove ${u.name || u.email}`} onClick={() => setRemoving(u)}>
-                              {I.trash}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
+              </div>
+            )
+          })}
+        </section>
       )}
+
+      <section aria-labelledby="members-title">
+        <h3 className="section-title" id="members-title" style={{ marginTop: 36 }}>
+          Members
+        </h3>
+        <div className="table-wrap" style={{ marginTop: 12 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody aria-busy={!usersLoaded}>
+              {!usersLoaded ? (
+                <SkeletonRows cols={3} />
+              ) : (
+                members.map((u) => {
+                  const you = u.id === me?.id
+                  const r = toAppRole(u.role)
+                  return (
+                    <tr key={u.id} data-testid="member-row" data-email={u.email}>
+                      <td>
+                        <Who u={u} you={you} />
+                      </td>
+                      <td>
+                        {owner && !you ? (
+                          <Listbox
+                            value={r}
+                            options={ROLE_OPTIONS}
+                            label={`Role for ${u.name || u.email}`}
+                            testId={`role-${u.id}`}
+                            onChange={(next) => change(u, next, `${u.name || u.email} is now ${ROLE_LABELS[next].toLowerCase()}`)}
+                          />
+                        ) : (
+                          <span>{ROLE_LABELS[r]}</span>
+                        )}
+                      </td>
+                      <td>
+                        {owner && !you && (
+                          <button className="icon-only" aria-label={`Remove ${u.name || u.email}`} onClick={() => setRemoving(u)}>
+                            {I.trash}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <ConfirmDialog
         open={removing !== null}

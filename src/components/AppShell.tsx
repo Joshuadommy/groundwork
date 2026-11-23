@@ -9,9 +9,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { signOut, useUser } from 'deepspace'
 import { useAppRole } from '../hooks/useAppRole'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { avatarColor, initials, useDocuments, useWorkspace } from '../hooks/useWorkspace'
 import { ROLE_LABELS } from '../roles'
 import { I, Logo } from './icons'
+import { ReconnectingNotice } from './ReconnectingNotice'
 import { ThemeChooser, ThemeToggle } from './ThemeToggle'
 
 const NAV = [
@@ -32,10 +34,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { records: docs } = useDocuments()
   const ready = docs.filter((d) => d.data.status === 'ready').length
   const title = titleFor(pathname)
+  // A document's tab shows its name: "Expense Guidelines · Groundwork".
+  const docId = pathname.match(/^\/documents\/([^/]+)/)?.[1]
+  const docTitle = docId ? docs.find((d) => d.recordId === decodeURIComponent(docId))?.data.title : undefined
+  usePageTitle(docTitle ?? title)
 
   return (
     <div className="app" data-testid="app-shell">
-      <title>{`${title} · Groundwork`}</title>
       <aside className="side" aria-label="Main">
         <Logo href="/ask" />
         <nav className="nav" aria-label="Sections" data-testid="app-navigation">
@@ -61,6 +66,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </header>
         <div className="content">{children}</div>
       </div>
+      <ReconnectingNotice />
     </div>
   )
 }

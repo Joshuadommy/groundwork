@@ -70,9 +70,17 @@ Use a desktop browser signed in as **your owner account** (the one that deploys)
 - [ ] On your phone (or DevTools device mode, e.g. iPhone 14, 390 px wide): the sidebar becomes a top icon bar; Ask has the composer pinned to the bottom; opening a citation shows the source as a bottom sheet; Documents hides the "Uploaded by" column; the viewer toolbar wraps and thumbnails are hidden; dialogs fit the screen.
 - [ ] Reference screenshots for every screen are in `docs/screenshots/` (desktop and phone, light and dark).
 
-### 13. Read the code that carries the trust claim
+### 13. UI refinement pass (prototype update of Nov 23)
+- [ ] **Ask flow:** on https://groundwork.app.space/ask, ask `What is the home office stipend?`. The box clears at once; the question appears at the top with three steps and a shimmer; the round send button shows a spinner. Watch the steps tick (searching → reading → checking): they follow the server, not a timer. The answer fades in.
+- [ ] **Dropdown:** on **Team** (with your second account approved), click a member's role: a popover with Viewer / Editor / Owner, a check on the current role and a one-line description each. With the keyboard: Tab to it, ArrowDown opens, arrows move, Enter chooses, Escape closes; focus goes back to the button.
+- [ ] **Team:** people waiting appear as cards ("signed in 2 days ago") with **Approve as Viewer** / **Approve as Editor**.
+- [ ] **Upload:** drag a file over the dialog's drop area (it turns green), then upload a document: the bar shows real percentages before the dialog closes.
+- [ ] **Loading and reconnecting:** reload: the green mark breathes over "Loading your workspace". Turn Wi-Fi off for ~5 seconds: a dark pill "Reconnecting… your work is safe" appears at the top and the page stays as it was; turn it back on: the pill goes and a "Reconnected" toast appears.
+- [ ] **Links, favicon, titles:** no link is underlined anywhere; document names are dark and turn green on hover. The browser tab shows the green Groundwork mark and titles like "Ask · Groundwork", "Team · Groundwork", or a document's name. On iOS, Add to Home Screen uses the same mark.
+
+### 14. Read the code that carries the trust claim
 - [ ] `src/lib/verify-citations.ts` is unchanged since Phase C. `src/lib/quotes.ts` and the coverage field run after it and never change the status.
-- [ ] Run `npx vitest run` (60 tests) and, with `OWNER_USER_ID` set to GW Owner in `.dev.vars`, `npx playwright test -c tests/playwright.config.ts` (16 pass, 2 skipped unless `GW_LIVE_AI=1`).
+- [ ] Run `npx vitest run` (76 tests) and, with `OWNER_USER_ID` set to GW Owner in `.dev.vars`, `npx playwright test -c tests/playwright.config.ts` (27 pass with documents uploaded locally; 3 skipped: two need `GW_LIVE_AI=1`, one needs `GW_LIVE_URL`).
 
 ---
 
@@ -99,7 +107,8 @@ Use a desktop browser signed in as **your owner account** (the one that deploys)
 - **`setRole` has no acknowledgement** (SDK feedback 13). If the owner's socket is momentarily disconnected, a click on Approve is silently dropped; the UI only changes when the server confirms via the roster broadcast, so you would see nothing happen and can click again.
 - **Not verified on live by me:** the upload route's success path and the authenticated file download in a browser (no owner browser session overnight). Both were verified locally through the real UI. Steps 3–4 above cover them on live.
 - **"Partially verified" (an invented citation) has never happened with a real model call**; it is covered by unit tests only.
-- **No per-user rate limit** on asking questions (each ask is an owner-billed model call).
+- **No per-user rate limit** on asking questions (each ask is an owner-billed model call). The updated prototype shows a "daily question limit" state; it was not in the refinement request and needs a server-side limit to mean anything, so it is not built.
+- If an ask fails, the server now removes its pending answer instead of saving an "error" answer (the prototype: "Nothing was saved as an answer"). Error answers saved before this change still show with Try again.
 - The Ask page shows the latest 50 answers; there is no pagination yet.
 - PDF pages on a phone are small at fit width (zoom works).
 - Large PDFs (100+ pages) were not tested; thumbnails render lazily.
