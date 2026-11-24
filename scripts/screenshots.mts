@@ -137,7 +137,6 @@ const SCREENS: Screen[] = [
     // The session check never answers, so the loading screen stays.
     prepare: (page) => page.route('**/api/auth/get-session*', () => never()),
   },
-  { name: 'documents', who: 'owner', path: '/documents' },
   {
     name: 'documents-loading',
     who: 'owner',
@@ -208,7 +207,6 @@ const SCREENS: Screen[] = [
   },
   { name: 'viewer-pdf-highlight', who: 'owner', path: citedPageUrl },
   { name: 'viewer-markdown', who: 'owner', path: markdownUrl },
-  { name: 'evals', who: 'owner', path: '/evals' },
   { name: 'not-found', who: 'signed-out', path: '/this-page-does-not-exist' },
 ]
 
@@ -227,8 +225,14 @@ for (const [who, name] of [['owner', 'GW Owner'], ['waiting', 'GW Viewer']] as c
   states[who] = getStatePathForEmail(acct.email, baseURL)
 }
 
-/** Team screens need a second member: approve GW Viewer, capture, then put them back. */
+/**
+ * Screens with a second teammate: GW Viewer is approved and kept signed in on
+ * /ask while these are captured (so presence shows two people online and Team
+ * has a member with a role picker), then removed again.
+ */
 const TEAM_SCREENS: Screen[] = [
+  { name: 'documents', who: 'owner', path: '/documents' },
+  { name: 'evals', who: 'owner', path: '/evals' },
   { name: 'team', who: 'owner', path: '/team' },
   {
     name: 'team-role-dropdown',
@@ -247,9 +251,16 @@ const team = TEAM_SCREENS.filter((s) => !only.size || only.has(s.name))
 if (team.length) {
   const viewer = findTestAccountByName('GW Viewer')
   await setMember(viewer.email, 'approve')
+  const viewerState = getStatePathForEmail(viewer.email, baseURL)
+  await ensureStorageState(browser, viewer, baseURL)
+  const online = await browser.newContext({ baseURL, storageState: viewerState })
   try {
+    const p = await online.newPage()
+    await p.goto('/ask')
+    await p.getByTestId('page-ask').waitFor({ timeout: 20000 })
     await capture(team)
   } finally {
+    await online.close()
     await setMember(viewer.email, 'remove')
   }
 }

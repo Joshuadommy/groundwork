@@ -163,16 +163,16 @@ export default function EvalsPage() {
 
       {status === 'loading' ? (
         <div className="table-wrap">
-          <table className="table" aria-busy="true" aria-label="Loading eval cases">
-            <thead>
-              <tr>
-                <th>Question</th>
-                <th>Latest result</th>
-                <th className="hide-sm">Last run</th>
-                <th>Since last run</th>
+          <table role="table" className="table table-cards tc-evals" aria-busy="true" aria-label="Loading eval cases">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Question</th>
+                <th role="columnheader">Latest result</th>
+                <th role="columnheader" className="hide-sm">Last run</th>
+                <th role="columnheader">Since last run</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               <SkeletonRows cols={4} />
             </tbody>
           </table>
@@ -195,29 +195,29 @@ export default function EvalsPage() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Question</th>
-                <th>Latest result</th>
-                <th className="hide-sm">Last run</th>
-                <th>Since last run</th>
+          <table role="table" className="table table-cards tc-evals">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Question</th>
+                <th role="columnheader">Latest result</th>
+                <th role="columnheader" className="hide-sm">Last run</th>
+                <th role="columnheader">Since last run</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {cases.map((c) => {
                 const run = latest.get(c.recordId)
                 const source = answerById.get(c.data.sourceAnswerId)
                 const result = run ?? source
                 return (
-                  <tr key={c.recordId} data-testid="eval-row">
-                    <td>
-                      <div className="strong">{c.data.question}</div>
-                      <div className="sub">
+                  <tr role="row" key={c.recordId} data-testid="eval-row">
+                    <td role="cell" className="ev-q">
+                      <div className="strong ev-question">{c.data.question}</div>
+                      <div className="sub ev-by">
                         {isManualCase(c.data.sourceAnswerId) ? 'Added' : 'Saved from an answer'} by {names.name(c.data.createdBy)}
                       </div>
                       {result && result.status !== 'abstained' && result.answerText && (
-                        <details style={{ marginTop: 6 }}>
+                        <details className="ev-details" style={{ marginTop: 6 }}>
                           <summary className="sub" style={{ cursor: 'pointer' }}>
                             {run ? 'Latest answer' : 'Original answer'}
                           </summary>
@@ -231,13 +231,23 @@ export default function EvalsPage() {
                         </details>
                       )}
                     </td>
-                    <td>
+                    <td role="cell" className="ev-status">
                       <ResultPill status={result?.status} />
                     </td>
-                    <td className="hide-sm">
-                      <span className="sub">{run ? shortDate(run.runAt) : 'Not run'}</span>
+                    <td role="cell" className="ev-run">
+                      <span className="sub">
+                        <span className="card-label">Last run: </span>
+                        {run ? (
+                          shortDate(run.runAt)
+                        ) : (
+                          <>
+                            <span className="card-label">never</span>
+                            <span className="card-hide">Not run</span>
+                          </>
+                        )}
+                      </span>
                     </td>
-                    <td>
+                    <td role="cell" className="ev-change">
                       {!run ? (
                         <span className="same">Not re-run yet</span>
                       ) : run.changedFromPrevious ? (

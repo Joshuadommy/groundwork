@@ -13,6 +13,7 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { avatarColor, initials, useDocuments, useWorkspace } from '../hooks/useWorkspace'
 import { ROLE_LABELS } from '../roles'
 import { I, Logo } from './icons'
+import { Presence } from './Presence'
 import { ReconnectingNotice } from './ReconnectingNotice'
 import { ThemeChooser, ThemeToggle } from './ThemeToggle'
 
@@ -60,6 +61,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <header className="top">
           <h1>{title}</h1>
           <div className="top-right">
+            <Presence />
             <ThemeToggle />
             <AccountMenu workspace={workspace} />
           </div>

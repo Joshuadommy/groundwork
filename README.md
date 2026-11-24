@@ -64,13 +64,14 @@ The highlight: the model also returns one short quote per citation; code keeps i
 | Auth (Google, Microsoft, Apple, GitHub) | Answers, ratings and eval cases belong to real teammates |
 | RBAC (custom `editor` role) | Viewers ask; Editors manage documents; Owners manage the team and run evals |
 | Real-time records | New answers, indexing status, ratings and role changes appear live for everyone |
+| Presence (`usePresence`) | The top bar shows which teammates are online (up to four avatars, then "+N", and "N online"), so a reviewer knows who else is looking at the same answers. Only approved teammates appear, and only to approved teammates: people waiting for access get an empty roster from the server, and waiting people in a teammate's roster are filtered out |
 | App files (`appFiles`) | Originals stored in the owner's private folder, served only through a role-checked route |
 | Managed knowledge | Platform retrieval (hybrid search) instead of a hand-rolled vector store |
 | Server-side AI | `claude-sonnet-5-5`, temperature 0, structured output; billed to the owner; no keys in the client |
 | Background jobs | Indexing a document (extract pages, add to knowledge, wait until searchable) outlives the upload request |
 | Agent tools | The same operations as the server actions, role-checked, for the in-app assistant and `deepspace agent invoke` |
 
-**Left out, and why:** payments (an internal team tool has no one to charge yet); presence / online-people avatars (deliberately left out: knowing who is online doesn't help anyone trust an answer, and the prototype's "3 online" avatars were never built, so no placeholder ships); collaborative editing / Yjs, canvas and voice (they don't serve the ask → verify → trust flow); invite records (replaced by owner approvals, because server code cannot assign a role at first sign-in, see PLAN.md SDK feedback 2).
+**Left out, and why:** payments (an internal team tool has no one to charge yet); collaborative editing / Yjs, canvas and voice (they don't serve the ask → verify → trust flow); invite records (replaced by owner approvals, because server code cannot assign a role at first sign-in, see PLAN.md SDK feedback 2).
 
 ## Run it locally
 

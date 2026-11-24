@@ -82,7 +82,11 @@ Use a desktop browser signed in as **your owner account** (the one that deploys)
 - [ ] On **Ask**, ask `Do I need to tell anyone if I'm dating a coworker?` and `What's the maximum gift I can give someone I manage?`: both should now come back **Verified**, citing the Workplace Relationships Policy pages 3 and 4. `What's the dress code?` should still say it isn't in your documents.
 - [ ] On **Evals**, the four cases show before → after (dating and gift **Changed** to Verified). Type a question into **Add question**: it appears with "Not run yet". Signed in as a Viewer, the box isn't there (and the server refuses it).
 
-### 15. Read the code that carries the trust claim
+### 15. Presence and phone tables
+- [ ] With your second account approved and signed in another window, the top bar shows two overlapping avatars and "2 online"; hover or Tab to an avatar to see the name. Remove the second account's access: within about a minute they disappear from your list, and their waiting screen shows nobody.
+- [ ] On a phone (or DevTools at 390 px), the top bar shows only "N online". **Evals**, **Documents** and **Team** show cards: the question or name on top, the badges or status and actions on one line below, and nothing wraps one word per line.
+
+### 16. Read the code that carries the trust claim
 - [ ] `src/lib/verify-citations.ts` is unchanged since Phase C. `src/lib/quotes.ts` and the coverage field run after it and never change the status.
 - [ ] Run `npx vitest run` (76 tests) and, with `OWNER_USER_ID` set to GW Owner in `.dev.vars`, `npx playwright test -c tests/playwright.config.ts` (27 pass with documents uploaded locally; 3 skipped: two need `GW_LIVE_AI=1`, one needs `GW_LIVE_URL`).
 

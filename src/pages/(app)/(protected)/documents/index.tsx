@@ -98,18 +98,18 @@ export default function DocumentsPage() {
 
       {status === 'loading' ? (
         <div className="table-wrap">
-          <table className="table" aria-busy="true" aria-label="Loading documents">
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th className="hide-sm">Uploaded by</th>
-                <th>Status</th>
-                <th>
+          <table role="table" className="table table-cards tc-docs" aria-busy="true" aria-label="Loading documents">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Document</th>
+                <th role="columnheader" className="hide-sm">Uploaded by</th>
+                <th role="columnheader">Status</th>
+                <th role="columnheader">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               <SkeletonRows cols={4} />
             </tbody>
           </table>
@@ -128,23 +128,23 @@ export default function DocumentsPage() {
         </div>
       ) : (
         <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Document</th>
-                <th className="hide-sm">Uploaded by</th>
-                <th>Status</th>
-                <th>
+          <table role="table" className="table table-cards tc-docs">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Document</th>
+                <th role="columnheader" className="hide-sm">Uploaded by</th>
+                <th role="columnheader">Status</th>
+                <th role="columnheader">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {docs.map((r) => {
                 const d = r.data
                 return (
-                  <tr key={r.recordId} data-testid="document-row" data-status={d.status}>
-                    <td>
+                  <tr role="row" key={r.recordId} data-testid="document-row" data-status={d.status}>
+                    <td role="cell" className="dc-doc">
                       <div className="strong">
                         {d.status === 'ready' ? (
                           <Link className="doc-link" to={`/documents/${r.recordId}/1`}>
@@ -159,8 +159,8 @@ export default function DocumentsPage() {
                         {d.status === 'failed' && d.error ? ` · ${d.error.replace(/^Indexing failed: /, '')}` : ''}
                       </div>
                     </td>
-                    <td className="hide-sm">{names.name(d.uploadedBy)}</td>
-                    <td>
+                    <td role="cell" className="hide-sm dc-by">{names.name(d.uploadedBy)}</td>
+                    <td role="cell" className="dc-status">
                       <StatusPill d={d} />
                       {d.status === 'failed' && canEdit && (
                         <button
@@ -173,7 +173,7 @@ export default function DocumentsPage() {
                         </button>
                       )}
                     </td>
-                    <td>
+                    <td role="cell" className="dc-actions">
                       {canEdit && (
                         <button
                           className="icon-only"

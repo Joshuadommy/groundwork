@@ -111,17 +111,17 @@ export default function TeamPage() {
           Members
         </h3>
         <div className="table-wrap" style={{ marginTop: 12 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Role</th>
-                <th>
+          <table role="table" className="table table-cards tc-team">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th role="columnheader">Member</th>
+                <th role="columnheader">Role</th>
+                <th role="columnheader">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody aria-busy={!usersLoaded}>
+            <tbody role="rowgroup" aria-busy={!usersLoaded}>
               {!usersLoaded ? (
                 <SkeletonRows cols={3} />
               ) : (
@@ -129,11 +129,11 @@ export default function TeamPage() {
                   const you = u.id === me?.id
                   const r = toAppRole(u.role)
                   return (
-                    <tr key={u.id} data-testid="member-row" data-email={u.email}>
-                      <td>
+                    <tr role="row" key={u.id} data-testid="member-row" data-email={u.email}>
+                      <td role="cell" className="tm-who">
                         <Who u={u} you={you} />
                       </td>
-                      <td>
+                      <td role="cell" className="tm-role">
                         {owner && !you ? (
                           <Listbox
                             value={r}
@@ -146,7 +146,7 @@ export default function TeamPage() {
                           <span>{ROLE_LABELS[r]}</span>
                         )}
                       </td>
-                      <td>
+                      <td role="cell" className="tm-actions">
                         {owner && !you && (
                           <button className="icon-only" aria-label={`Remove ${u.name || u.email}`} onClick={() => setRemoving(u)}>
                             {I.trash}
