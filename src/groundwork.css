@@ -103,7 +103,7 @@ a{color:inherit;text-decoration:none}
 .presence-av img{border-radius:50%}
 .presence-more{background:var(--surface-2);color:var(--ink-2)}
 .presence-tip{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;z-index:35}
-.presence-av:hover .presence-tip,.presence-av:focus-visible .presence-tip{opacity:1}
+.presence-av:hover .presence-tip,.presence-av:focus .presence-tip{opacity:1}
 .presence-label{font-size:13px;color:var(--ink-3);margin-left:8px;white-space:nowrap}
 .presence-short{display:none}
 .acct{position:relative}
