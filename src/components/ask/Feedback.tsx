@@ -21,10 +21,13 @@ export function Feedback({
   answer,
   ratings,
   saved,
+  onDelete,
 }: {
   answer: RecordData<AnswerData>
   ratings: RecordData<FeedbackData>[]
   saved: boolean
+  /** Owners only: asks to delete this answer (the page confirms, the server enforces). */
+  onDelete?: () => void
 }) {
   const { user } = useUser()
   const { role } = useAppRole()
@@ -112,6 +115,11 @@ export function Feedback({
           </button>
         )}
         {saved && <span className="saved">Saved as eval case</span>}
+        {onDelete && (
+          <button className="icon-only fb-delete" aria-label="Delete answer" title="Delete answer" data-testid="delete-answer" onClick={onDelete}>
+            {I.trash}
+          </button>
+        )}
       </div>
       {showPanel && (
         <div className="fb-panel" data-testid="feedback-panel">

@@ -20,6 +20,7 @@ import { ANSWER_MODEL, modelGenerator } from '../server/generation'
 import { modelQueryExpander } from '../server/query-expansion'
 import { requireRole, withRole } from '../server/roles'
 import { checkDailyLimit, DAILY_QUESTION_LIMIT } from '../lib/daily-limit'
+import { isSearchOutage, SEARCH_UNAVAILABLE } from '../lib/service-errors'
 import { TEAM_ROLES } from '../roles'
 
 export const QUESTION_MAX_CHARS = 2000
@@ -125,7 +126,7 @@ export async function runAsk(
     if (!removed.success) {
       await tools.update('answers', answerId, { status: 'error', error: AI_ERROR }).catch(() => undefined)
     }
-    return { success: false, error: AI_ERROR }
+    return { success: false, error: isSearchOutage(error) ? SEARCH_UNAVAILABLE : AI_ERROR }
   }
 }
 

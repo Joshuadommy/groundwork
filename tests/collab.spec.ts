@@ -169,6 +169,7 @@ test.describe('access approval, live feedback and server-enforced roles', () => 
       const refused = { success: false, error: 'You do not have permission to do this.' }
       expect((await callAction(request, 'saveEvalCase', { answerId: 'any' }, token)).body).toEqual(refused)
       expect((await callAction(request, 'addEvalCase', { question: 'Can a Viewer add this?' }, token)).body).toEqual(refused)
+      expect((await callAction(request, 'deleteAnswer', { answerId: 'any' }, token)).body).toEqual(refused)
       expect((await callAction(request, 'runEvals', {}, token)).body).toEqual(refused)
       expect((await callAction(request, 'deleteDocument', { documentId: 'any' }, token)).body).toEqual(refused)
       const upload = await request.post('/api/documents', {

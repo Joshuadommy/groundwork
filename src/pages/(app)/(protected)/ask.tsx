@@ -13,7 +13,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useUser } from 'deepspace'
+import { useToast } from '@/components/ui'
 import { AnswerCard } from '../../../components/ask/AnswerCard'
+import { ConfirmDialog } from '../../../components/Dialog'
 import { Feedback } from '../../../components/ask/Feedback'
 import { AskErrorCard, PendingCard } from '../../../components/ask/PendingCard'
 import { SourcePanel } from '../../../components/ask/SourcePanel'
@@ -23,7 +25,7 @@ import { useLiveQuery } from '../../../hooks/useLiveQuery'
 import { useDocuments, useNames } from '../../../hooks/useWorkspace'
 import { callAction } from '../../../lib/api'
 import { DAILY_LIMIT_MESSAGE, DAILY_QUESTION_LIMIT, isOverDailyLimit, questionsInWindow } from '../../../lib/daily-limit'
-import { canEditDocuments } from '../../../roles'
+import { canEditDocuments, isOwnerRole } from '../../../roles'
 import type { AnswerData, Citation } from '../../../schemas/answers-schema'
 import type { EvalCaseData } from '../../../schemas/evals-schema'
 import type { FeedbackData } from '../../../schemas/feedback-schema'
@@ -73,6 +75,20 @@ export default function AskPage() {
     limit: DAILY_QUESTION_LIMIT + 1,
   })
   const [serverLimited, setServerLimited] = useState(false)
+  const [toDelete, setToDelete] = useState<{ id: string; question: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const { success: toastSuccess, error: toastError } = useToast()
+
+  async function confirmDelete() {
+    if (!toDelete) return
+    setDeleting(true)
+    const res = await callAction('deleteAnswer', { answerId: toDelete.id })
+    setDeleting(false)
+    if (!res.success) return toastError('Couldn’t delete the answer', res.error)
+    setOpen((cur) => (cur?.answerId === toDelete.id ? null : cur))
+    setToDelete(null)
+    toastSuccess('Answer deleted')
+  }
   const limited = serverLimited || isOverDailyLimit(role, questionsInWindow(mine.map((r) => r.createdAt)))
   // Answers created after this page opened fade in; older ones render still.
   const [openedAt] = useState(() => Date.now() - 2000)
@@ -208,7 +224,14 @@ export default function AskPage() {
                       setOpen((cur) => (cur?.answerId === r.recordId && cur.label === c.label ? null : { answerId: r.recordId, label: c.label }))
                     }
                     onRetry={(q) => ask(q)}
-                    footer={<Feedback answer={r} ratings={ratingsByAnswer.get(r.recordId) ?? []} saved={savedAnswers.has(r.recordId)} />}
+                    footer={
+                      <Feedback
+                        answer={r}
+                        ratings={ratingsByAnswer.get(r.recordId) ?? []}
+                        saved={savedAnswers.has(r.recordId)}
+                        onDelete={isOwnerRole(role) ? () => setToDelete({ id: r.recordId, question: r.data.question }) : undefined}
+                      />
+                    }
                   />
                 )
               })}
@@ -239,6 +262,19 @@ export default function AskPage() {
         />
       )}
       <Composer disabled={loading || noDocs} limited={limited} busy={busy} onAsk={ask} />
+      <ConfirmDialog
+        open={toDelete !== null}
+        title="Delete this answer?"
+        body={
+          <>
+            “{toDelete?.question}” and its ratings will be removed for everyone. Eval cases saved from it are kept.
+          </>
+        }
+        action="Delete answer"
+        busy={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setToDelete(null)}
+      />
     </>
   )
 }

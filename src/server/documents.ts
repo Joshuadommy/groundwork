@@ -12,6 +12,7 @@
  * Callers check roles first: these functions run with RBAC off.
  */
 
+import { isSearchOutage, SEARCH_UNAVAILABLE } from '../lib/service-errors'
 import { appFiles, enqueueJob, knowledge, KnowledgeError } from 'deepspace/worker'
 import type { ActionTools, JobContext, KnowledgeClient, KnowledgeItem } from 'deepspace/worker'
 import type { Env } from '../../worker'
@@ -97,7 +98,16 @@ export async function deleteDocument(
   const got = await tools.get<DocumentData>('documents', documentId)
   if (!got.success) return { success: false, error: 'Document not found.' }
   const doc = got.data.record.data
-  await removeKnowledgeItems(env, doc.knowledgeItemIds ?? [])
+  try {
+    await removeKnowledgeItems(env, doc.knowledgeItemIds ?? [])
+  } catch (error) {
+    // Nothing else is deleted, so the document stays whole and can be deleted again later.
+    if (isSearchOutage(error)) {
+      console.error(`[documents] delete ${documentId}: search service unavailable`)
+      return { success: false, error: SEARCH_UNAVAILABLE }
+    }
+    throw error
+  }
   if (doc.fileKey) await ownerFiles(env).delete(doc.fileKey).catch(() => undefined)
   const removed = await tools.remove('documents', documentId)
   if (!removed.success) return { success: false, error: removed.error ?? 'Could not delete the document.' }
@@ -253,7 +263,8 @@ export async function indexDocument(env: Env, documentId: string, ctx: JobContex
     console.error(`[documents] failed ${documentId}: ${message}`)
     await tools.update('documents', documentId, {
       status: 'failed',
-      error: message === SCANNED_PDF_ERROR ? message : `Indexing failed: ${message}`,
+      error:
+        message === SCANNED_PDF_ERROR ? message : `Indexing failed: ${isSearchOutage(error) ? SEARCH_UNAVAILABLE : message}`,
       knowledgeItemIds: itemIds,
     })
     return { documentId, failed: message }

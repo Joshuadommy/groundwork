@@ -13,6 +13,7 @@ import { AgentToolError, knowledge } from 'deepspace/worker'
 import type { AgentToolContext } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { runAsk, QUESTION_MAX_CHARS } from '../actions/ask'
+import { runDeleteAnswer } from '../actions/answers'
 import { runAddEvalCase, runEvalBatch } from '../actions/evals'
 import { runSetupWorkspace } from '../actions/setup'
 import { parsePassageKey } from '../lib/passage-key'
@@ -148,6 +149,17 @@ export function buildGroundworkTools(context: AgentToolContext<Env>): ToolSet {
           coverage: r.data.coverage,
           citations: r.data.citations.map((c) => `${c.docTitle} p.${c.page}`),
         }))
+      },
+    }),
+
+    delete_answer: tool({
+      description: 'Owners only. Delete an answer and its ratings (eval cases saved from it are kept).',
+      inputSchema: z.object({ answerId: z.string().min(1) }),
+      execute: async ({ answerId }) => {
+        await need(context, OWNER_ROLES)
+        const result = await runDeleteAnswer(records(), userId, answerId)
+        if (!result.success) throw new AgentToolError('delete_failed', result.error, 400)
+        return result.data
       },
     }),
 

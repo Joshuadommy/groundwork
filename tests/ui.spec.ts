@@ -268,4 +268,29 @@ test.describe('owner UI states', () => {
     await expect(page.getByTestId('send')).toBeDisabled()
     await expect(page.getByTestId('ask-error')).toHaveCount(0)
   })
+
+  test('an Owner deletes an answer after confirming; Cancel keeps it', async ({ users }) => {
+    const [owner] = await users(['GW Owner'])
+    const page = owner.page
+    await page.goto('/ask')
+    await expect(page.getByTestId('page-ask')).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(1500)
+    const card = page.locator('[data-testid=answer]').filter({ has: page.getByTestId('delete-answer') }).last()
+    test.skip((await card.count()) === 0, 'No finished answers locally')
+    const id = await card.locator('h3').getAttribute('id')
+    const question = (await card.locator('h3').innerText()).trim()
+
+    await card.getByTestId('delete-answer').click()
+    const dialog = page.getByTestId('confirm-dialog')
+    await expect(dialog).toContainText('Delete this answer?')
+    await expect(dialog).toContainText(question)
+    await expect(dialog).toContainText('Eval cases saved from it are kept.')
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.locator(`article:has(h3#${id})`)).toHaveCount(1)
+
+    await card.getByTestId('delete-answer').click()
+    await dialog.getByRole('button', { name: 'Delete answer' }).click()
+    await expect(page.getByText('Answer deleted')).toBeVisible()
+    await expect(page.locator(`article:has(h3#${id})`)).toHaveCount(0, { timeout: 10_000 })
+  })
 })

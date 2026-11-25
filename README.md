@@ -31,14 +31,14 @@ Every screen at desktop and phone width, light and dark: [docs/screenshots/](doc
    - if the documents answer only part of the question, a note says so: *"Answers part of your question; your documents don't cover the rest."*
    - **While it answers:** the question appears in the thread at once with three live steps (searching your documents, reading the most relevant passages, checking every citation). The steps follow the server's real progress: the action writes a `stage` on the pending answer as it moves from retrieval to the model to verification, and the page finds its own pending answer by a request id. The answer fades in when it's saved. If the AI call fails, nothing is saved and the question shows an inline error with **Try again**. Teammates see each other's pending questions live.
 3. **Open the source:** each citation chip opens the passage; "Open page N" opens the original document on that page with the supporting sentence highlighted.
-4. **Rate** answers 👍/👎 (with an optional note). Ratings update live for the whole team.
+4. **Rate** answers 👍/👎 (with an optional note). Ratings update live for the whole team. Owners can **delete** a confusing or test answer (with confirmation); eval cases saved from it are kept.
 5. **Save** a bad answer as an **eval case**, or type a question straight into **Add question** on the Evals page (Editors and Owners, checked on the server); Owners **re-run** eval cases (up to 10 per run) and see which outcomes changed.
 
 ## Roles and access approval
 
 | Role id | Shown as | Can |
 |---|---|---|
-| `admin` | Owner | Everything: approve people, change roles, remove access, re-run evals |
+| `admin` | Owner | Everything: approve people, change roles, remove access, re-run evals, delete answers |
 | `editor` | Editor | Ask, rate, upload/delete documents, save eval cases |
 | `member` | Viewer | Ask and rate |
 | `viewer` | No access | Nothing: sees "Waiting for access" |
@@ -60,7 +60,7 @@ What it does **not** guarantee:
 
 The highlight: the model also returns one short quote per citation; code keeps it only if it occurs verbatim (ignoring whitespace and case) in the retrieved passage (`src/lib/quotes.ts`). The viewer finds that quote in the PDF's text layer and paints it with the CSS Custom Highlight API.
 
-**Retrieval and reworded questions.** Managed-knowledge search only returns hits above a relevance cutoff (about 0.4 of its 0–1 score; `matchThreshold` and `mode` did not change it, see PLAN.md SDK feedback 18), and its score rewards wording close to the document's. A question in everyday words ("Do I need to tell anyone if I'm dating a coworker?") could find nothing for a page that says "romantic relationship with a colleague", and abstained before the model. So when the question as asked retrieves nothing, a small model (Haiku, temperature 0) writes up to five policy-worded search phrases, those are searched, and the hits are merged (`src/server/query-expansion.ts`, `src/lib/answer-question.ts`). It costs one small extra model call and about a second, only on questions that would otherwise be "Not in your documents"; the answer still comes only from retrieved passages and citations are still verified in code.
+**Retrieval and reworded questions.** Managed-knowledge search only returns hits above a relevance cutoff (about 0.4 of its 0–1 score; `matchThreshold` and `mode` did not change it, see PLAN.md SDK feedback 18), and its score rewards wording close to the document's. A question in everyday words ("Do I need to tell anyone if I'm dating a coworker?") could find nothing for a page that says "romantic relationship with a colleague", and abstained before the model. So when the question as asked retrieves nothing, a small model (Haiku, temperature 0) writes up to five policy-worded search phrases, those are searched, and the hits are merged (`src/server/query-expansion.ts`, `src/lib/answer-question.ts`). It costs one small extra model call and about a second, only on questions that would otherwise be "Not in your documents"; the answer still comes only from retrieved passages and citations are still verified in code. If the knowledge service itself fails, asking, deleting and indexing say "The search service is temporarily unavailable. Try again in a few minutes." instead of a generic error, and a document whose pages can't be removed is left whole so it can be deleted later.
 
 **Per-page indexing.** Managed knowledge returns no page numbers, so each page is its own knowledge item with the page in its key (`docs/<documentId>/p0002.txt`), parsed back at answer time (`src/lib/passage-key.ts`). PDFs are split with `unpdf` inside the Worker by a background job.
 

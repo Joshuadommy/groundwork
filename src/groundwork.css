@@ -159,6 +159,7 @@ h2.page{margin:0;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-
 .fb-panel{margin-top:12px;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--surface)}
 .fb-panel textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:var(--radius-s);padding:10px;background:var(--bg);resize:vertical}
 .saved{font-size:14px;color:var(--brand);font-weight:600}
+.fb-delete{margin-left:auto}
 .composer-wrap{position:fixed;left:240px;right:0;bottom:0;padding:16px 32px 24px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:4}
 .composer{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;border:1px solid var(--line);border-radius:var(--radius-m);padding:10px 10px 10px 16px;background:var(--bg);box-shadow:var(--shadow)}
 .composer textarea{flex:1;border:0;resize:none;outline:none;background:none;min-height:28px;max-height:160px;padding:8px 0;font-size:16px}

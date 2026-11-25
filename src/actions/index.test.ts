@@ -9,6 +9,7 @@ describe('server actions registry', () => {
     expect(Object.keys(actions).sort()).toEqual([
       'addEvalCase',
       'askQuestion',
+      'deleteAnswer',
       'deleteDocument',
       'retryDocumentIndexing',
       'runEvals',
