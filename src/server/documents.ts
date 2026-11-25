@@ -172,7 +172,7 @@ async function addPages(
 }
 
 /** Every knowledge item in a document's folder (list() pages at most 50). */
-async function listFolder(kb: KnowledgeClient, documentId: string): Promise<KnowledgeItem[]> {
+export async function listFolder(kb: KnowledgeClient, documentId: string): Promise<KnowledgeItem[]> {
   const items: KnowledgeItem[] = []
   for (let page = 1; page <= 100; page++) {
     const listed = await kb.list({ folder: documentFolder(documentId), perPage: LIST_PAGE_SIZE, page })

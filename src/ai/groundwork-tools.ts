@@ -21,7 +21,7 @@ import type { AnswerData } from '../schemas/answers-schema'
 import type { DocumentData } from '../schemas/documents-schema'
 import type { EvalCaseData, EvalRunData } from '../schemas/evals-schema'
 import { createActionTools } from '../server/action-tools'
-import { retryIndexing } from '../server/documents'
+import { listFolder, retryIndexing } from '../server/documents'
 import { requireRole } from '../server/roles'
 import { EDITOR_ROLES, OWNER_ROLES, TEAM_ROLES, type AppRole } from '../roles'
 
@@ -64,6 +64,30 @@ export function buildGroundworkTools(context: AgentToolContext<Env>): ToolSet {
           indexedPages: r.data.knowledgeItemIds?.length ?? 0,
           error: r.data.error || undefined,
         }))
+      },
+    }),
+
+    document_index_status: tool({
+      description:
+        'Editors and Owners. Every knowledge item in a document\'s folder (key, status, chunks, error), compared with the item ids saved on the document record.',
+      inputSchema: z.object({ documentId: z.string().min(1) }),
+      execute: async ({ documentId }) => {
+        await need(context, EDITOR_ROLES)
+        const got = await records().get<DocumentData>('documents', documentId)
+        if (!got.success) throw new AgentToolError('not_found', 'Document not found.', 404)
+        const doc = got.data.record.data
+        const saved = new Set(doc.knowledgeItemIds ?? [])
+        const items = await listFolder(knowledge(env), documentId)
+        return {
+          title: doc.title,
+          status: doc.status,
+          pageCount: doc.pageCount,
+          savedItemIds: doc.knowledgeItemIds?.length ?? 0,
+          items: items
+            .map((i) => ({ key: i.key, id: i.id, status: i.status, chunks: i.chunksCount, error: i.error, updatedAt: i.updatedAt, saved: saved.has(i.id) }))
+            .sort((a, b) => a.key.localeCompare(b.key)),
+          savedButNotListed: [...saved].filter((id) => !items.some((i) => i.id === id)),
+        }
       },
     }),
 
