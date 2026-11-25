@@ -18,7 +18,7 @@
 import { useEffect, useMemo } from 'react'
 import { usePresence, useUser, useUsers, type RoomUser } from 'deepspace'
 import { avatarColor, initials } from '../hooks/useWorkspace'
-import { onlineTeammates } from '../lib/presence'
+import { onlineTeammates, presenceLabel } from '../lib/presence'
 
 /** Online = a heartbeat within this window (heartbeats come every 60 s). */
 export const PRESENCE_TIMEOUT_MS = 150_000
@@ -32,10 +32,16 @@ export function Presence() {
 
   useEffect(() => {
     const t = setInterval(refresh, PRESENCE_REFRESH_MS)
+    // Background tabs throttle timers; refresh as soon as the tab is looked at again.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
     window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(t)
       window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [refresh])
 
@@ -45,7 +51,8 @@ export function Presence() {
   const shown = online.slice(0, MAX_AVATARS)
   const more = online.slice(MAX_AVATARS)
   const nameOf = (u: RoomUser) => `${u.name || 'Teammate'}${u.id === me?.id ? ' (you)' : ''}`
-  const label = `${online.length} ${online.length === 1 ? 'teammate' : 'teammates'} online`
+  // The count includes you; the label says so ("You and 1 other online").
+  const label = presenceLabel(online.map((u) => u.id), me?.id)
 
   return (
     <div className="presence" role="group" aria-label={label} data-testid="presence">
@@ -76,7 +83,10 @@ export function Presence() {
         )}
       </div>
       <span className="presence-label" data-testid="presence-count">
-        {online.length} online
+        <span className="presence-long">{label}</span>
+        <span className="presence-short" aria-hidden="true">
+          {online.length} online
+        </span>
       </span>
     </div>
   )

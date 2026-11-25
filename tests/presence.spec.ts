@@ -46,8 +46,10 @@ test('two approved teammates see each other online; a waiting user never appears
     // Each sees the other (the owner's roster refreshes within 20 s of the teammate arriving).
     await expect(avatar(owner.page, teammateId)).toBeVisible({ timeout: 45_000 })
     await expect(avatar(teammate.page, ownerId)).toBeVisible({ timeout: 45_000 })
-    await expect(owner.page.getByTestId('presence-count')).toHaveText('2 online')
-    await expect(teammate.page.getByTestId('presence-count')).toHaveText('2 online')
+    // The count includes you, and the label says so.
+    await expect(owner.page.getByTestId('presence-count').locator('.presence-long')).toHaveText('You and 1 other online')
+    await expect(teammate.page.getByTestId('presence-count').locator('.presence-long')).toHaveText('You and 1 other online')
+    await expect(owner.page.getByTestId('presence')).toHaveAttribute('aria-label', 'You and 1 other online')
 
     // The waiting user is connected (online by heartbeat) but never listed.
     await expect(avatar(owner.page, waitingId)).toHaveCount(0)

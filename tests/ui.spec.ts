@@ -248,4 +248,24 @@ test.describe('owner UI states', () => {
     await expect(page.getByText('That question is already an eval case')).toBeVisible()
     await expect(page.getByTestId('eval-row').filter({ hasText: question })).toHaveCount(1)
   })
+
+  test('at the daily question limit, the Ask page shows the message and disables the composer', async ({ users }) => {
+    const [owner] = await users(['GW Owner'])
+    const page = owner.page
+    await page.goto('/ask')
+    await expect(page.getByTestId('page-ask')).toBeVisible({ timeout: 20_000 })
+    await page.waitForTimeout(1000)
+    test.skip(await page.getByTestId('ask-empty-no-docs').isVisible(), 'No ready documents locally')
+    // The server refuses (as runAsk does at 20 questions in 24 hours); no model call.
+    await page.route('**/api/actions/askQuestion', (route) =>
+      route.fulfill({ json: { success: false, error: "You've reached today's limit of 20 questions. Try again tomorrow." } }),
+    )
+    await page.locator('#qInput').fill('One more question?')
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('daily-limit')).toHaveText("You've reached today's limit of 20 questions. Try again tomorrow.")
+    await expect(page.locator('#qInput')).toBeDisabled()
+    await expect(page.locator('#qInput')).toHaveAttribute('placeholder', 'Daily question limit reached')
+    await expect(page.getByTestId('send')).toBeDisabled()
+    await expect(page.getByTestId('ask-error')).toHaveCount(0)
+  })
 })

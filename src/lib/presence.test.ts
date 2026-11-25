@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { onlineTeammates } from './presence'
+import { onlineTeammates, presenceLabel } from './presence'
 
 const u = (id: string, name: string, role: string) => ({ id, name, role })
 
@@ -20,5 +20,14 @@ describe('onlineTeammates', () => {
 
   it('never includes people waiting for access, even when they are online', () => {
     expect(onlineTeammates(roster, () => true, 'me').some((x) => x.role === 'viewer')).toBe(false)
+  })
+})
+
+describe('presenceLabel', () => {
+  it('counts you and says so', () => {
+    expect(presenceLabel(['me', 'a'], 'me')).toBe('You and 1 other online')
+    expect(presenceLabel(['me', 'a', 'b'], 'me')).toBe('You and 2 others online')
+    expect(presenceLabel(['me'], 'me')).toBe('Only you online')
+    expect(presenceLabel(['a', 'b'], 'me')).toBe('2 online')
   })
 })

@@ -2,7 +2,14 @@
 
 A team knowledge assistant that answers questions from your team's documents, cites the exact passages it used, and refuses to cite anything it didn't actually retrieve.
 
-**Live:** https://groundwork.app.space (private: sign in with Google, Microsoft, Apple or GitHub, then wait for the owner to approve you)
+**Live:** https://groundwork.app.space · **Demo video:** https://youtu.be/n7ABJHlI_Jk
+
+## For reviewers
+
+- **Open** https://groundwork.app.space and sign in with Google, Microsoft, Apple or GitHub. This review deployment admits new sign-ins as **Viewer**, so you land on **Ask** right away.
+- **Try:** ask a question about the sample documents (for example "How many days a week can I work remotely, and what are the core hours?" or "Do I need to tell anyone if I'm dating a coworker?"), click a citation chip to see the source passage, click **Open page N** to see the original page with the supporting sentence highlighted, rate an answer 👍/👎, and see who else is online in the top bar. A question the documents don't cover ("What's the dress code?") comes back "Not in your documents" instead of a guess.
+- **Limits:** up to 20 questions per person in any 24 hours (each question is a model call billed to the owner). Uploading, deleting, eval cases and team management need Editor or Owner and are refused for Viewers, in the UI and on the server.
+- **Access in a real deployment:** a real team deployment admits nobody automatically. New sign-ins see "Waiting for access" until the owner approves them on the Team page, as shown in the demo video. It is one setting (`NEW_USER_ROLE` in `src/schemas/users-schema.ts`); the waiting screen, approvals and role checks are all still in the app.
 
 Built on the [DeepSpace](https://docs.deep.space) SDK (Cloudflare Workers, React). The full plan, design decisions, verification log and SDK feedback are in [PLAN.md](PLAN.md).
 
@@ -17,7 +24,7 @@ Every screen at desktop and phone width, light and dark: [docs/screenshots/](doc
 ## What it does
 
 1. **Upload** a PDF, Markdown or text file (Editors and Owners). Each page is indexed separately in DeepSpace managed knowledge.
-2. **Ask** a question (any approved teammate). The server retrieves passages, labels them S1..Sn, asks the model to answer citing those labels, then **checks every citation in code** against what was retrieved:
+2. **Ask** a question (any approved teammate; up to 20 questions per person in any 24 hours, Owners exempt, enforced on the server). The server retrieves passages, labels them S1..Sn, asks the model to answer citing those labels, then **checks every citation in code** against what was retrieved:
    - all citations valid → **Verified**
    - some invented → they are removed and the answer is **Partially verified**
    - none valid, or nothing relevant retrieved → **"I couldn't find this in your documents"**
@@ -36,7 +43,7 @@ Every screen at desktop and phone width, light and dark: [docs/screenshots/](doc
 | `member` | Viewer | Ask and rate |
 | `viewer` | No access | Nothing: sees "Waiting for access" |
 
-- The account that deployed the app is the owner. Everyone else who signs in starts as **No access** and sees a waiting screen with their email.
+- The account that deployed the app is the owner. In a real team deployment everyone else who signs in starts as **No access** and sees a waiting screen with their email. **This review deployment** starts new sign-ins as **Viewer** instead (`NEW_USER_ROLE` in `src/schemas/users-schema.ts`); people who signed in earlier keep their role, and an owner can still remove anyone back to waiting.
 - There are no invites. The owner opens **Team**, finds the person under *Waiting for access* and clicks **Approve as Viewer** or **Approve as Editor**. The person's waiting screen turns into the app without a reload. Roles can be changed or removed (back to waiting) from the same page; non-owners see it read-only.
 - Enforcement is on the server, not the UI: collection rules in the record room (answers, documents, eval cases and runs have **no client writes at all**, so a client cannot forge a "Verified" answer); every server action and HTTP route calls `requireRole()`, which reads the caller's role from their `users` row; the records WebSocket requires a verified token; only admins can change roles.
 

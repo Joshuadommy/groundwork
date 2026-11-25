@@ -18,7 +18,8 @@ import type { DocumentData } from '../schemas/documents-schema'
 import { knowledgeRetriever } from '../server/retrieval'
 import { ANSWER_MODEL, modelGenerator } from '../server/generation'
 import { modelQueryExpander } from '../server/query-expansion'
-import { withRole } from '../server/roles'
+import { requireRole, withRole } from '../server/roles'
+import { checkDailyLimit, DAILY_QUESTION_LIMIT } from '../lib/daily-limit'
 import { TEAM_ROLES } from '../roles'
 
 export const QUESTION_MAX_CHARS = 2000
@@ -56,6 +57,24 @@ export async function runAsk(
     return { success: false, error: 'Invalid request id.' }
   }
   const requestId = rawRequestId as string | undefined
+
+  // Daily limit (Owners exempt). Here, not in the callers, so the action and
+  // the ask_question agent tool are both covered.
+  const access = await requireRole(env, userId, TEAM_ROLES)
+  if (!access.ok) return { success: false, error: access.error }
+  const limit = await checkDailyLimit(access.role, async () => {
+    const mine = await tools.query<AnswerData>('answers', {
+      where: { askedBy: userId },
+      orderBy: 'createdAt',
+      orderDir: 'desc',
+      limit: DAILY_QUESTION_LIMIT + 1,
+    })
+    return mine.success ? mine.data.records.map((r) => r.createdAt) : []
+  })
+  if (!limit.ok) {
+    console.info(`[ask] daily limit reached for ${userId}`)
+    return { success: false, error: limit.error }
+  }
 
   const pending: AnswerData = {
     question,

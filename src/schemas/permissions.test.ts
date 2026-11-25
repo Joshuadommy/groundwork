@@ -39,3 +39,15 @@ describe('collection permissions', () => {
     expect(f.columns.find((c) => c.name === 'userId')).toMatchObject({ userBound: true })
   })
 })
+
+describe('new sign-ins (review deployment setting)', () => {
+  const users = () => schemas.find((s) => s.name === 'users')!
+
+  it('admits new sign-ins as Viewer (member), not as Editor or Owner', () => {
+    expect(users().defaultRole).toBe('member')
+  })
+
+  it('keeps the no-access role closed, so switching defaultRole back to viewer restores approvals', () => {
+    expect(users().permissions.viewer.read).toBe(false)
+  })
+})

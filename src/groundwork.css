@@ -105,6 +105,7 @@ a{color:inherit;text-decoration:none}
 .presence-tip{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .12s;z-index:35}
 .presence-av:hover .presence-tip,.presence-av:focus-visible .presence-tip{opacity:1}
 .presence-label{font-size:13px;color:var(--ink-3);margin-left:8px;white-space:nowrap}
+.presence-short{display:none}
 .acct{position:relative}
 .acct-btn{border:0;background:none;padding:0;border-radius:50%;cursor:pointer;min-width:36px;min-height:36px;display:grid;place-items:center}
 .menu{position:absolute;right:0;top:calc(100% + 8px);width:260px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-m);box-shadow:var(--shadow);padding:8px;z-index:30}
@@ -162,6 +163,8 @@ h2.page{margin:0;font-size:28px;line-height:1.2;font-weight:700;letter-spacing:-
 .composer{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;border:1px solid var(--line);border-radius:var(--radius-m);padding:10px 10px 10px 16px;background:var(--bg);box-shadow:var(--shadow)}
 .composer textarea{flex:1;border:0;resize:none;outline:none;background:none;min-height:28px;max-height:160px;padding:8px 0;font-size:16px}
 .composer.disabled{opacity:.6}
+.limit{display:flex;gap:10px;align-items:center;max-width:860px;margin:0 auto 10px;padding:10px 14px;border-radius:var(--radius-s);background:var(--amber-soft);color:var(--ink);font-size:14px}
+.limit svg{color:var(--amber);flex:none}
 .composer-error{max-width:860px;margin:0 auto 8px;font-size:13px;color:var(--danger);font-weight:600}
 .send{width:44px;height:44px;padding:0;border-radius:10px;flex:none}
 .send .spin{width:16px;height:16px;border-width:2px}
@@ -362,6 +365,8 @@ dialog.gw-dialog::backdrop{background:rgba(15,20,26,.45)}
 }
 @media (max-width: 600px){
   .presence-avs{display:none}
+  .presence-long{display:none}
+  .presence-short{display:inline}
   .presence-label{margin-left:0}
   .nav .label-text{display:none}
   .tb-sep{display:none}

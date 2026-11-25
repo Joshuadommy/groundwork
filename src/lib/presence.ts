@@ -16,3 +16,11 @@ export function onlineTeammates<T extends RosterEntry>(users: T[], isOnline: (id
     .filter((u) => canAsk(toAppRole(u.role)) && isOnline(u.id))
     .sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : (a.name || '').localeCompare(b.name || '')))
 }
+
+/** "You and 1 other online", "Only you online", or "N online" when you aren't in the list. The count includes you. */
+export function presenceLabel(onlineIds: string[], meId: string | undefined): string {
+  const includesMe = !!meId && onlineIds.includes(meId)
+  if (!includesMe) return `${onlineIds.length} online`
+  const others = onlineIds.length - 1
+  return others === 0 ? 'Only you online' : `You and ${others} ${others === 1 ? 'other' : 'others'} online`
+}

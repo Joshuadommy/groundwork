@@ -32,7 +32,7 @@ test.skip(
     '--password-stdin`, or fetch existing pool accounts with `npx deepspace test accounts recover --all`.',
 )
 
-test('new sign-ins wait for access and receive no records', async ({ users }) => {
+test('people without access (viewer) wait and receive no records', async ({ users }) => {
   // Named, not users(2): the pool's first accounts include GW Owner, which is
   // the app owner in local runs (OWNER_USER_ID in .dev.vars) and so is admin.
   const [a, b] = await users(['GW Editor', 'GW Viewer'])

@@ -22,6 +22,7 @@ import { useAppRole } from '../../../hooks/useAppRole'
 import { useLiveQuery } from '../../../hooks/useLiveQuery'
 import { useDocuments, useNames } from '../../../hooks/useWorkspace'
 import { callAction } from '../../../lib/api'
+import { DAILY_LIMIT_MESSAGE, DAILY_QUESTION_LIMIT, isOverDailyLimit, questionsInWindow } from '../../../lib/daily-limit'
 import { canEditDocuments } from '../../../roles'
 import type { AnswerData, Citation } from '../../../schemas/answers-schema'
 import type { EvalCaseData } from '../../../schemas/evals-schema'
@@ -64,6 +65,15 @@ export default function AskPage() {
   const [open, setOpen] = useState<{ answerId: string; label: string } | null>(null)
   const [local, setLocal] = useState<LocalAsk[]>([])
   const { user: me } = useUser()
+  // My recent questions, for the daily limit (the server enforces it; this only disables the composer).
+  const { records: mine } = useQuery<AnswerData>('answers', {
+    where: { askedBy: me?.id ?? '-' },
+    orderBy: 'createdAt',
+    orderDir: 'desc',
+    limit: DAILY_QUESTION_LIMIT + 1,
+  })
+  const [serverLimited, setServerLimited] = useState(false)
+  const limited = serverLimited || isOverDailyLimit(role, questionsInWindow(mine.map((r) => r.createdAt)))
   // Answers created after this page opened fade in; older ones render still.
   const [openedAt] = useState(() => Date.now() - 2000)
 
@@ -95,6 +105,12 @@ export default function AskPage() {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
     void callAction<{ answerId: string }>('askQuestion', { question, requestId }).then((res) => {
+      if (!res.success && res.error === DAILY_LIMIT_MESSAGE) {
+        // The banner above the composer says it; no error card for this question.
+        setServerLimited(true)
+        setLocal((cur) => cur.filter((l) => l.requestId !== requestId))
+        return
+      }
       setLocal((cur) =>
         res.success ? cur.filter((l) => l.requestId !== requestId) : cur.map((l) => (l.requestId === requestId ? { ...l, error: res.error } : l)),
       )
@@ -203,7 +219,7 @@ export default function AskPage() {
                 <p>These questions about the sample documents show each kind of result.</p>
                 <div className="suggest">
                   {SUGGESTIONS.map((s) => (
-                    <button key={s} onClick={() => ask(s)} disabled={busy}>
+                    <button key={s} onClick={() => ask(s)} disabled={busy || limited}>
                       {s}
                     </button>
                   ))}
@@ -222,12 +238,23 @@ export default function AskPage() {
           onClose={() => setOpen(null)}
         />
       )}
-      <Composer disabled={loading || noDocs} busy={busy} onAsk={ask} />
+      <Composer disabled={loading || noDocs} limited={limited} busy={busy} onAsk={ask} />
     </>
   )
 }
 
-function Composer({ disabled, busy, onAsk }: { disabled: boolean; busy: boolean; onAsk: (q: string) => void }) {
+function Composer({
+  disabled: noDocuments,
+  limited,
+  busy,
+  onAsk,
+}: {
+  disabled: boolean
+  limited: boolean
+  busy: boolean
+  onAsk: (q: string) => void
+}) {
+  const disabled = noDocuments || limited
   const [value, setValue] = useState('')
   const ref = useRef<HTMLTextAreaElement>(null)
   const tooLong = value.length > QUESTION_MAX
@@ -258,6 +285,12 @@ function Composer({ disabled, busy, onAsk }: { disabled: boolean; busy: boolean;
 
   return (
     <div className="composer-wrap">
+      {limited && (
+        <div className="limit" role="status" data-testid="daily-limit">
+          {I.warn}
+          <span>{DAILY_LIMIT_MESSAGE}</span>
+        </div>
+      )}
       {tooLong && <div className="composer-error">Questions can be at most {QUESTION_MAX} characters.</div>}
       <form className={`composer${disabled ? ' disabled' : ''}`} onSubmit={submit} data-testid="composer">
         <label htmlFor="qInput" className="sr-only">
@@ -270,7 +303,13 @@ function Composer({ disabled, busy, onAsk }: { disabled: boolean; busy: boolean;
           value={value}
           disabled={disabled}
           aria-invalid={tooLong}
-          placeholder={disabled ? 'Add a document before asking questions' : "Ask a question about your team's documents"}
+          placeholder={
+            noDocuments
+              ? 'Add a document before asking questions'
+              : limited
+                ? 'Daily question limit reached'
+                : "Ask a question about your team's documents"
+          }
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
         />
